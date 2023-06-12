@@ -1,12 +1,10 @@
 import sys
 
 from PyQt5.QtWidgets import QApplication
-from videoplayer import VideoPlayer
-
-config_file = "config.ini"
+from skillandria.videoplayer import VideoPlayer
 
 
-if __name__ == "__main__":
+class Main:
     app = QApplication(sys.argv)
     player = VideoPlayer()
     sys.exit(app.exec_())

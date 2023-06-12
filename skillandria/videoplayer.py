@@ -1,3 +1,5 @@
+import sys
+
 from PyQt5.QtCore import QTime, QSize, QTimer, QUrl, Qt
 from PyQt5.QtGui import QIcon
 from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
@@ -6,14 +8,13 @@ from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSpl
     QPushButton, QSlider, QTextEdit, QLabel, QGridLayout, QFrame, QMessageBox, \
     QHeaderView, QSpacerItem, QSizePolicy, QTreeView
 
+from PyQt5.QtCore import Qt
+
 from googletrans import Translator
 
-from helpers import *
-from settings import SettingsDialog
-from treemodel import VideoTreeModel
-
-config_file = "config.ini"
-
+from skillandria.helpers import *
+from skillandria.settings import SettingsDialog
+from skillandria.treemodel import VideoTreeModel
 
 class VideoPlayer(QMainWindow):
     def __init__(self, parent=None):
@@ -25,9 +26,20 @@ class VideoPlayer(QMainWindow):
         self.setWindowTitle("Skillandria")
         self.resize(800, 600)
 
+        print("Config ", os.path.exists(config_file))
+        print("Current working directory:", os.getcwd())
+        print("Config file path:", config_file)
+        print("Icon file path:", icon_path)
+
+        # print("----------------- 1 ------------------")
+        self.player = QMediaPlayer(self)
+        # print("----------------- 2 ------------------")
+
         if not os.path.exists(config_file):
-            # "config.ini" file does not exist, display settings dialog
+            # config_file file does not exist, display settings dialog
+
             self.open_settings()
+
 
         self.start_time = 0
         self.end_time = 0
@@ -89,8 +101,10 @@ class VideoPlayer(QMainWindow):
 
         self.play_button = QPushButton("", self)
         self.play_button.clicked.connect(self.toggle_playback)
-        self.play_button.setIcon(QIcon("icons/ico_play.png"))
+        self.play_button.setIcon(QIcon(os.path.join(icon_path, "ico_play.png")))
         self.play_button.setIconSize(QSize(100, 100))
+
+        self.play_button.setEnabled(False)
 
         self.filename_label = QLabel("")
         self.progress_label = QLabel("0%")
@@ -161,27 +175,27 @@ class VideoPlayer(QMainWindow):
 
         self.full_screen_button = QPushButton("", self)
         self.full_screen_button.clicked.connect(self.toggle_full_screen)
-        self.full_screen_button.setIcon(QIcon("icons/ico_screen.png"))
+        self.full_screen_button.setIcon(QIcon(os.path.join(icon_path, "ico_screen.png")))
         self.button_layout.addWidget(self.full_screen_button)
 
         self.half_speed_button = QPushButton("", self)
         self.half_speed_button.clicked.connect(self.set_half_speed)
-        self.half_speed_button.setIcon(QIcon("icons/ico_slow.png"))
+        self.half_speed_button.setIcon(QIcon(os.path.join(icon_path, "ico_slow.png")))
         self.button_layout.addWidget(self.half_speed_button)
 
         self.normal_speed_button = QPushButton("", self)
         self.normal_speed_button.clicked.connect(self.set_normal_speed)
-        self.normal_speed_button.setIcon(QIcon("icons/ico_normal.png"))
+        self.normal_speed_button.setIcon(QIcon(os.path.join(icon_path, "ico_normal.png")))
         self.button_layout.addWidget(self.normal_speed_button)
 
         self.double_speed_button = QPushButton("", self)
         self.double_speed_button.clicked.connect(self.set_double_speed)
-        self.double_speed_button.setIcon(QIcon("icons/ico_fast.png"))
+        self.double_speed_button.setIcon(QIcon(os.path.join(icon_path, "ico_fast.png")))
         self.button_layout.addWidget(self.double_speed_button)
 
         self.settings_button = QPushButton("", self)
         self.settings_button.clicked.connect(self.open_settings)
-        self.settings_button.setIcon(QIcon("icons/ico_config.png"))
+        self.settings_button.setIcon(QIcon(os.path.join(icon_path, "ico_config.png")))
         self.button_layout.addWidget(self.settings_button)
 
         self.right_section_layout.addLayout(self.button_layout)
@@ -201,7 +215,7 @@ class VideoPlayer(QMainWindow):
 
         self.layout.addWidget(self.horizontal_splitter)
 
-        self.player = QMediaPlayer(self)
+
         self.player.setVideoOutput(self.video_widget)
 
         self.player.durationChanged.connect(self.update_duration)
@@ -217,6 +231,8 @@ class VideoPlayer(QMainWindow):
 
         self.show()
 
+        print(config_file)
+
         self.tree_view.expandAll()  # Expand all items in the tree
         self.tree_view.collapseAll()  # Expand all items in the tree
 
@@ -227,7 +243,7 @@ class VideoPlayer(QMainWindow):
 
     def load_last_played_video(self):
         # Load the last played video from config.ini
-        self.settings = QSettings("config.ini", QSettings.IniFormat)
+        self.settings = QSettings(config_file, QSettings.IniFormat)
         last_video = self.settings.value("LastVideo")
         if last_video is not None:
             self.string_from_file = last_video
@@ -295,12 +311,17 @@ class VideoPlayer(QMainWindow):
             translator = Translator()
             try:
                 if subtitle_text.strip():  # Check if the subtitle text is not empty or contains only whitespace
-                    translation = translator.translate(subtitle_text, dest=self.translation_language)
-                    self.translation_textedit.setPlainText(translation.text)
+                    translation = translator.translate(subtitle_text, dest=self.translation_language).text
+
+                    # googletranslate version 3.0 breaks, version 3.1 needs to pass translation instead translation.text
+                    self.translation_textedit.setPlainText(translation)
                 else:
                     self.translation_textedit.clear()
-            except TypeError as e:
+            except Exception as e:
+
+                # print(f"translation.text: {self.translation}")
                 print(f"Translation error: {e}")
+                # Handle the exception here (show an error message, log the error, etc.)
         else:
             self.translation_textedit.clear()
 
@@ -428,7 +449,7 @@ class VideoPlayer(QMainWindow):
     def toggle_playback(self):
         if self.player.state() == QMediaPlayer.PlayingState:
             self.player.pause()
-            self.play_button.setIcon(QIcon("icons/ico_play.png"))
+            self.play_button.setIcon(QIcon(os.path.join(icon_path, "ico_play.png")))
         else:
             index = self.tree_view.currentIndex()
             node = index.internalPointer()
@@ -446,7 +467,7 @@ class VideoPlayer(QMainWindow):
 
                 self.start_timer()
                 self.player.play()
-                self.play_button.setIcon(QIcon("icons/ico_pause.png"))
+                self.play_button.setIcon(QIcon(os.path.join(icon_path, "ico_pause.png")))
             elif not node.is_folder:  # Check if the selected item is not a folder
                 # Show confirmation dialog
                 index_text = index.data(Qt.DisplayRole)
@@ -464,13 +485,13 @@ class VideoPlayer(QMainWindow):
 
                     self.start_timer()
                     self.player.play()
-                    self.play_button.setIcon(QIcon("icons/ico_pause.png"))
+                    self.play_button.setIcon(QIcon(os.path.join(icon_path, "ico_pause.png")))
                     # Save the current video path to config.ini
                     self.settings.setValue("LastVideo", self.current_video_path)
 
     def stop_video(self):
         self.player.stop()
-        self.play_button.setIcon(QIcon("icons/ico_play.png"))
+        self.play_button.setIcon(QIcon(os.path.join(icon_path, "ico_play.png")))
         # Stop the timer
         self.stop_timer()
 
@@ -524,7 +545,7 @@ class VideoPlayer(QMainWindow):
         self.timer_label.setStyleSheet("")
 
     def save_last_file_played(self):
-        settings = QSettings("config.ini", QSettings.IniFormat)
+        settings = QSettings(config_file, QSettings.IniFormat)
         settings.setValue("LastVideo", self.current_video_path)
 
     def closeEvent(self, event):
@@ -535,7 +556,7 @@ class VideoPlayer(QMainWindow):
         )
         if reply == QMessageBox.Yes:
 
-            self.play_button.setIcon(QIcon("icons/ico_play.png"))
+            self.play_button.setIcon(QIcon(os.path.join(icon_path, "ico_play.png")))
             self.save_video_info()
             self.player.stop()
             self.stop_timer()

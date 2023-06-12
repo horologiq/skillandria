@@ -1,7 +1,21 @@
 import os
 import re
+import sys
 
 from PyQt5.QtCore import QSettings
+
+# Get the base path of the bundled executable
+base_path = os.path.abspath(os.path.dirname(__file__))
+
+# Get the path to the icon files
+if getattr(sys, 'frozen', False):
+    # Running as bundled executable
+    icon_path = os.path.join(base_path, '../icons')
+    config_file = os.path.join(base_path, '../config.ini')
+else:
+    # Running in development environment
+    icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icons')
+    config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../config.ini')
 
 
 def time_to_milliseconds(time_str):
@@ -21,7 +35,7 @@ def human_sort_key(name):
 
 
 def load_folder_path():
-    settings = QSettings("config.ini", QSettings.IniFormat)
+    settings = QSettings(config_file, QSettings.IniFormat)
     return settings.value("VideoPath", "")
 
 
@@ -90,5 +104,5 @@ def update_played_status(node):
 
 
 def load_translation_language():
-    settings = QSettings("config.ini", QSettings.IniFormat)
+    settings = QSettings(config_file, QSettings.IniFormat)
     return settings.value("SubtitleLanguage", "es")

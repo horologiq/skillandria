@@ -3,9 +3,10 @@ from PyQt5.QtCore import QAbstractItemModel, QModelIndex
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QFont, QIcon, QBrush, QColor
 
-from helpers import *
-from treenode import TreeNode
+from skillandria.helpers import *
+from skillandria.treenode import TreeNode
 
+from moviepy.editor import VideoFileClip
 
 class VideoTreeModel(QAbstractItemModel):
     def __init__(self, folder_path, string_from_file):
@@ -87,10 +88,10 @@ class VideoTreeModel(QAbstractItemModel):
 
         if role == Qt.DecorationRole and index.column() == 1:
             if node.folder_name_matches(self.string_from_file):
-                icon = QIcon("icons/ico_studying.png")
+                icon = (QIcon(os.path.join(icon_path, "ico_studying.png")))
                 return icon
             if os.path.isdir(node.path) and node.all_files_played():
-                icon = QIcon("icons/trophy.png")
+                icon = (QIcon(os.path.join(icon_path, "trophy.png")))
                 return icon
 
         return None
@@ -101,7 +102,6 @@ class VideoTreeModel(QAbstractItemModel):
             return self.duration_cache[file_path]
 
         try:
-            from moviepy.editor import VideoFileClip
             clip = VideoFileClip(file_path)
             duration = clip.duration
             clip.close()
@@ -180,4 +180,3 @@ class VideoTreeModel(QAbstractItemModel):
     def flags(self, index):
         default_flags = super().flags(index)
         return default_flags | Qt.ItemIsEnabled  # Add the Qt.ItemIsEnabled flag
-

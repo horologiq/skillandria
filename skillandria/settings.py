@@ -1,6 +1,8 @@
 from PyQt5.QtCore import pyqtSignal, QSettings
 from PyQt5.QtWidgets import QDialog, QHBoxLayout, QVBoxLayout, QLabel, QLineEdit, QPushButton, QComboBox, QFileDialog
 
+from skillandria.helpers import *
+
 
 class SettingsDialog(QDialog):
     languageChanged = pyqtSignal(str)
@@ -49,7 +51,7 @@ class SettingsDialog(QDialog):
         self.video_path_edit.setText(video_path)
 
     def load_settings(self):
-        settings = QSettings("config.ini", QSettings.IniFormat)
+        settings = QSettings(config_file, QSettings.IniFormat)
         video_path = settings.value("VideoPath")
         subtitle_language = settings.value("SubtitleLanguage")
 
@@ -60,7 +62,7 @@ class SettingsDialog(QDialog):
         video_path = self.video_path_edit.text()
         subtitle_language = self.subtitle_language_combo.currentText()
 
-        settings = QSettings("config.ini", QSettings.IniFormat)
+        settings = QSettings(config_file, QSettings.IniFormat)
         settings.setValue("VideoPath", video_path)
         settings.setValue("SubtitleLanguage", subtitle_language)
 
