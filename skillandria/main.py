@@ -1,10 +1,11 @@
 import sys
+import os
 
-from PyQt5.QtWidgets import QApplication
+from PyQt6.QtWidgets import QApplication
 from skillandria.videoplayer import VideoPlayer
 
 
 class Main:
     app = QApplication(sys.argv)
     player = VideoPlayer()
-    sys.exit(app.exec_())
+    sys.exit(app.exec())

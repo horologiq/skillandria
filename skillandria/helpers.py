@@ -1,21 +1,34 @@
 import os
-import re
 import sys
 
-from PyQt5.QtCore import QSettings
+from PyQt6.QtCore import QSettings
+from PyQt6.QtCore import QStandardPaths
+from PyQt6.QtCore import QFile, QIODevice, QTextStream
 
-# Get the base path of the bundled executable
-base_path = os.path.abspath(os.path.dirname(__file__))
+config_dir = QStandardPaths.standardLocations(QStandardPaths.StandardLocation.AppConfigLocation)[0]
+config_file = f"{config_dir}/skillandria"
 
-# Get the path to the icon files
-if getattr(sys, 'frozen', False):
-    # Running as bundled executable
-    icon_path = os.path.join(base_path, '../icons')
-    config_file = os.path.join(base_path, '../config.ini')
-else:
-    # Running in development environment
-    icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icons')
-    config_file = os.path.join(os.path.dirname(os.path.abspath(__file__)), '../config.ini')
+
+def get_icon_path(theme):
+    base_path = os.path.abspath(os.path.dirname(__file__))
+
+    if getattr(sys, 'frozen', False):
+        icon_path = os.path.join(base_path, '../themes', theme)
+    else:
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'themes', theme)
+    return icon_path
+
+
+def get_theme_path(theme):
+    # Get the base path of the bundled executable
+    base_path = os.path.abspath(os.path.dirname(__file__))
+
+    # Get the path to the icon files
+    if getattr(sys, 'frozen', False):
+        theme_path = os.path.join(base_path, '../themes', theme, 'style.qss')
+    else:
+        theme_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'themes', theme, 'style.qss')
+    return theme_path
 
 
 def time_to_milliseconds(time_str):
@@ -29,13 +42,8 @@ def time_to_milliseconds(time_str):
     return milliseconds
 
 
-def human_sort_key(name):
-    parts = re.split(r'(\d+)', name)
-    return [int(part) if part.isdigit() else part for part in parts]
-
-
 def load_folder_path():
-    settings = QSettings(config_file, QSettings.IniFormat)
+    settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, config_file)
     return settings.value("VideoPath", "")
 
 
@@ -43,66 +51,20 @@ def format_time(seconds):
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
     seconds = int(seconds % 60)
-    return "{:02d}:{:02d}:{:02d}".format(hours, minutes, seconds)
-
-
-def is_video_file(file_path):
-    video_extensions = [".mp4", ".avi", ".mkv", ".mov"]  # Add more video file extensions if needed
-    return any(file_path.lower().endswith(extension) for extension in video_extensions)
-
-
-def get_video_info(index):
-    node = index.internalPointer()
-    if node:
-        return node.position, node.played
-    return None
-
-
-def reset_video_info(index):
-    node = index.internalPointer()
-    if node:
-        node.position = 0
-        node.played = False
-
-
-def save_video_info(index):
-    node = index.internalPointer()
-    if node and os.path.isfile(node.path):
-        info_path = os.path.splitext(node.path)[0] + ".nfo"
-        with open(info_path, "w") as info_file:
-            info_file.write("Position: {}\n".format(node.position))
-            info_file.write("Played: {}\n".format(node.played))
-
-
-def read_played_status(folder_path):  # Accept folder_path as a parameter
-    played_status = {}
-    for root, dirs, files in os.walk(folder_path):  # Use folder_path parameter
-        for file in files:
-            if file.endswith(".nfo"):
-                nfo_file_path = os.path.join(root, file)
-                video_file_path = os.path.splitext(nfo_file_path)[0]
-                played = False
-                with open(nfo_file_path, "r") as nfo_file:
-                    for line in nfo_file:
-                        if line.strip().startswith("Played="):
-                            played_value = line.strip().split("=")[1]
-                            played = played_value.lower() == "true"
-                            break
-                played_status[video_file_path] = played
-    return played_status
-
-
-def update_played_status(node):
-    nfo_file_path = os.path.splitext(node.path)[0] + ".nfo"
-    if os.path.isfile(nfo_file_path):
-        with open(nfo_file_path, "r") as nfo_file:
-            for line in nfo_file:
-                if line.strip().startswith("Played="):
-                    played_value = line.strip().split("=")[1]
-                    node.played = played_value.lower() == "true"
-                    break
+    return "{:01d}:{:02d}:{:02d}".format(hours, minutes, seconds)
 
 
 def load_translation_language():
-    settings = QSettings(config_file, QSettings.IniFormat)
+    settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, config_file)
     return settings.value("SubtitleLanguage", "es")
+
+
+def load_stylesheet(theme_str):
+    style_file = QFile(theme_str)
+    if style_file.open(QIODevice.OpenModeFlag.ReadOnly | QIODevice.OpenModeFlag.Text):
+        style = QTextStream(style_file).readAll()
+        style_file.close()
+        return style
+
+    else:
+        return ""

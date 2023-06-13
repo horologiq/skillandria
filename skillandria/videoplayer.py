@@ -1,90 +1,87 @@
-import sys
-
-from PyQt5.QtCore import QTime, QSize, QTimer, QUrl, Qt
-from PyQt5.QtGui import QIcon
-from PyQt5.QtMultimedia import QMediaPlayer, QMediaContent
-from PyQt5.QtMultimediaWidgets import QVideoWidget
-from PyQt5.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter, \
+from PyQt6.QtCore import QTime, QSize, QTimer, QUrl, Qt
+from PyQt6.QtGui import QIcon
+from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
+from PyQt6.QtMultimediaWidgets import QVideoWidget
+from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter, \
     QPushButton, QSlider, QTextEdit, QLabel, QGridLayout, QFrame, QMessageBox, \
     QHeaderView, QSpacerItem, QSizePolicy, QTreeView
-
-from PyQt5.QtCore import Qt
-
 from googletrans import Translator
 
 from skillandria.helpers import *
 from skillandria.settings import SettingsDialog
 from skillandria.treemodel import VideoTreeModel
 
+
 class VideoPlayer(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
+
+        self.load_theme()
+
         self.string_from_file = None
         self.subtitle_list = None
         self.settings_dialog = None
         self.settings = None
         self.setWindowTitle("Skillandria")
+
         self.resize(800, 600)
-
-        print("Config ", os.path.exists(config_file))
-        print("Current working directory:", os.getcwd())
-        print("Config file path:", config_file)
-        print("Icon file path:", icon_path)
-
-        # print("----------------- 1 ------------------")
-        self.player = QMediaPlayer(self)
-        # print("----------------- 2 ------------------")
-
-        if not os.path.exists(config_file):
-            # config_file file does not exist, display settings dialog
-
-            self.open_settings()
-
+        self.translation_delay = 0
 
         self.start_time = 0
         self.end_time = 0
+
+        if not os.path.exists(config_file):
+            self.open_settings()
+
+        self.icon_path = get_icon_path(self.theme)
+        self.theme_path = get_theme_path(self.theme)
 
         self.translation_language = load_translation_language()
         self.folder_path = load_folder_path()
 
         self.subtitle_connected = False  # Flag to track subtitle connection
 
-        self.left_section_size = None
-        self.right_section_size = None
-
+        # Main widget
         self.central_widget = QWidget(self)
         self.setCentralWidget(self.central_widget)
-
         self.layout = QHBoxLayout(self.central_widget)
 
         # Horizontal splitter
-        self.horizontal_splitter = QSplitter(Qt.Horizontal, self.central_widget)
+        self.horizontal_splitter = QSplitter(Qt.Orientation.Horizontal, self.central_widget)
 
         # First section: Video widget and subtitle text field
         self.left_section = QWidget(self)
-        self.video_widget = QVideoWidget(self)
-        self.left_section_layout = QVBoxLayout(self.left_section)
-        self.subtitle_textedit = QTextEdit(self)
-        self.translation_textedit = QTextEdit(self)
+        self.player = QMediaPlayer(self)
+        self.audioOutput = QAudioOutput()
+        self.player.setAudioOutput(self.audioOutput)
 
+        self.video_widget = QVideoWidget(self)
+        self.player.setVideoOutput(self.video_widget)
+
+        self.player.durationChanged.connect(self.update_duration)
+        self.player.positionChanged.connect(self.update_position)
+        self.player.mediaStatusChanged.connect(self.check_media_status)
+
+        self.left_section_layout = QVBoxLayout(self.left_section)
         self.left_section_layout.addWidget(self.video_widget)
 
         # Add horizontal spacer before subtitle text field to span to the right
-        horizontal_spacer = QSpacerItem(800, 1, QSizePolicy.Expanding, QSizePolicy.Minimum)
-
+        horizontal_spacer = QSpacerItem(800, 1, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
         self.left_section_layout.addItem(horizontal_spacer)
+
+        self.subtitle_textedit = QTextEdit(self)
+        self.translation_textedit = QTextEdit(self)
 
         self.left_section_layout.addWidget(self.subtitle_textedit)
         self.left_section_layout.addWidget(self.translation_textedit)
 
-        self.subtitle_textedit.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.subtitle_textedit.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.translation_textedit.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-        self.translation_textedit.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
+        self.subtitle_textedit.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.subtitle_textedit.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.translation_textedit.setVerticalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
+        self.translation_textedit.setHorizontalScrollBarPolicy(Qt.ScrollBarPolicy.ScrollBarAlwaysOff)
 
         self.subtitle_textedit.setFixedHeight(25)  # Set fixed height
         self.subtitle_textedit.textChanged.connect(self.translate_subtitle)
-
         self.translation_textedit.setFixedHeight(25)  # Set fixed height
 
         self.horizontal_splitter.addWidget(self.left_section)
@@ -93,7 +90,7 @@ class VideoPlayer(QMainWindow):
         self.right_section = QWidget(self)
         self.right_section_layout = QVBoxLayout(self.right_section)
 
-        self.right_section_layout.setAlignment(Qt.AlignTop)
+        self.right_section_layout.setAlignment(Qt.AlignmentFlag.AlignTop)
         self.right_section.setLayout(self.right_section_layout)
 
         # Top right
@@ -101,7 +98,7 @@ class VideoPlayer(QMainWindow):
 
         self.play_button = QPushButton("", self)
         self.play_button.clicked.connect(self.toggle_playback)
-        self.play_button.setIcon(QIcon(os.path.join(icon_path, "ico_play.png")))
+        self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_play.png")))
         self.play_button.setIconSize(QSize(100, 100))
 
         self.play_button.setEnabled(False)
@@ -112,12 +109,9 @@ class VideoPlayer(QMainWindow):
         self.timer_label = QLabel("00:00:00")
 
         # Set frame properties for the labels
-        self.filename_label.setFrameShape(QFrame.Panel)
-        self.filename_label.setFrameShadow(QFrame.Sunken)
-        self.lesson_name.setFrameShape(QFrame.Panel)
-        self.lesson_name.setFrameShadow(QFrame.Sunken)
-        self.timer_label.setFrameShape(QFrame.Panel)
-        self.timer_label.setFrameShadow(QFrame.Sunken)
+        self.filename_label.setFrameShape(QFrame.Shape.StyledPanel)
+        self.lesson_name.setFrameShape(QFrame.Shape.StyledPanel)
+        self.timer_label.setFrameShape(QFrame.Shape.StyledPanel)
 
         # Apply bold font to the filename label
         self.filename_label.setStyleSheet("font-weight: bold;")
@@ -147,26 +141,25 @@ class VideoPlayer(QMainWindow):
         self.timer_running = 0
 
         # Playlist
-
         self.tree_view = QTreeView(self)
+
         self.load_last_played_video()
 
-        self.model = VideoTreeModel(self.folder_path, self.string_from_file)
+        self.model = VideoTreeModel(self.folder_path, self.string_from_file, self.icon_path, self.theme)
+
         self.tree_view.setModel(self.model)
         self.tree_view.clicked.connect(self.play_selected_video)
         self.tree_view.setExpandsOnDoubleClick(False)  # Disable expanding on double-click
         self.tree_view.setAnimated(False)
         self.tree_view.setIndentation(15)
-
-        header_view = self.tree_view.header()
-
-        header_view.setSectionResizeMode(1, QHeaderView.ResizeToContents)
-
+        self.tree_view.setRootIsDecorated(False)  # Show the root node
         self.tree_view.setColumnWidth(0, 300)  # Width for the first column
 
-        header_view.setDefaultAlignment(Qt.AlignLeft | Qt.AlignVCenter)  # Align the first column to the left
-
-        header_view.setContextMenuPolicy(Qt.CustomContextMenu)
+        header_view = self.tree_view.header()
+        header_view.setSectionResizeMode(1, QHeaderView.ResizeMode.ResizeToContents)
+        header_view.setDefaultAlignment(
+            Qt.AlignmentFlag.AlignLeft | Qt.AlignmentFlag.AlignVCenter)  # first column to the left
+        header_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
 
         self.right_section_layout.addWidget(self.tree_view)
 
@@ -175,33 +168,33 @@ class VideoPlayer(QMainWindow):
 
         self.full_screen_button = QPushButton("", self)
         self.full_screen_button.clicked.connect(self.toggle_full_screen)
-        self.full_screen_button.setIcon(QIcon(os.path.join(icon_path, "ico_screen.png")))
+        self.full_screen_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_screen.png")))
         self.button_layout.addWidget(self.full_screen_button)
 
         self.half_speed_button = QPushButton("", self)
         self.half_speed_button.clicked.connect(self.set_half_speed)
-        self.half_speed_button.setIcon(QIcon(os.path.join(icon_path, "ico_slow.png")))
+        self.half_speed_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_slow.png")))
         self.button_layout.addWidget(self.half_speed_button)
 
         self.normal_speed_button = QPushButton("", self)
         self.normal_speed_button.clicked.connect(self.set_normal_speed)
-        self.normal_speed_button.setIcon(QIcon(os.path.join(icon_path, "ico_normal.png")))
+        self.normal_speed_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_normal.png")))
         self.button_layout.addWidget(self.normal_speed_button)
 
         self.double_speed_button = QPushButton("", self)
         self.double_speed_button.clicked.connect(self.set_double_speed)
-        self.double_speed_button.setIcon(QIcon(os.path.join(icon_path, "ico_fast.png")))
+        self.double_speed_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_fast.png")))
         self.button_layout.addWidget(self.double_speed_button)
 
         self.settings_button = QPushButton("", self)
         self.settings_button.clicked.connect(self.open_settings)
-        self.settings_button.setIcon(QIcon(os.path.join(icon_path, "ico_config.png")))
+        self.settings_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_config.png")))
         self.button_layout.addWidget(self.settings_button)
 
         self.right_section_layout.addLayout(self.button_layout)
 
         # Slider
-        self.timeline_slider = QSlider(Qt.Horizontal, self)
+        self.timeline_slider = QSlider(Qt.Orientation.Horizontal, self)
         self.timeline_slider.setRange(0, 0)
         self.timeline_slider.sliderMoved.connect(self.set_position)
 
@@ -215,13 +208,6 @@ class VideoPlayer(QMainWindow):
 
         self.layout.addWidget(self.horizontal_splitter)
 
-
-        self.player.setVideoOutput(self.video_widget)
-
-        self.player.durationChanged.connect(self.update_duration)
-        self.player.positionChanged.connect(self.update_position)
-        self.player.mediaStatusChanged.connect(self.check_media_status)
-
         self.current_video_path = ""
         self.current_video_position = 0
         self.current_video_timer = 0
@@ -229,36 +215,32 @@ class VideoPlayer(QMainWindow):
 
         self.horizontal_splitter.splitterMoved.connect(self.handle_splitter_moved)
 
-        self.show()
-
-        print(config_file)
-
         self.tree_view.expandAll()  # Expand all items in the tree
         self.tree_view.collapseAll()  # Expand all items in the tree
 
-        self.tree_view.repaint()  # Trigger a manual update of the view
-        self.tree_view.update()
+        self.left_section_size = self.left_section.sizeHint().width()
+        self.right_section_size = self.right_section.sizeHint().width()
 
-        self.setWindowState(Qt.WindowMaximized)  # Move setWindowState() method here
+        self.show()
+
+    def load_theme(self):
+        # Load the theme from the config.ini file
+        self.settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, config_file)
+        if self.settings.value("DarkThemeEnabled") == "true":
+            self.theme = "dark"
+        else:
+            self.theme = "light"
+        self.setStyleSheet(load_stylesheet(get_theme_path(self.theme)))
+        self.repaint()
 
     def load_last_played_video(self):
         # Load the last played video from config.ini
-        self.settings = QSettings(config_file, QSettings.IniFormat)
+        self.settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, config_file)
         last_video = self.settings.value("LastVideo")
         if last_video is not None:
             self.string_from_file = last_video
         else:
             self.string_from_file = "No lecture in the file"
-
-    def handle_tree_view_clicked(self, index):
-        node = index.internalPointer()
-        if node.is_folder:
-            if self.tree_view.isExpanded(index):
-                self.tree_view.collapse(index)
-            else:
-                self.tree_view.expand(index)
-        else:
-            self.tree_view.setCurrentIndex(index)
 
     def update_video_info(self):
         # Update the filename label with the current video filename
@@ -298,23 +280,24 @@ class VideoPlayer(QMainWindow):
             self.subtitle_textedit.show()
             self.translation_textedit.show()
 
-    def create_settings_dialog(self):
-        self.settings_dialog = SettingsDialog()
-        self.settings_dialog.languageChanged.connect(self.language_changed)
-
     def language_changed(self, language):
         self.translation_language = language  # Update the translation language
 
     def translate_subtitle(self):
+
+        # self.translation_delay = self.translation_delay + 1
+        # print(self.translation_delay)
+
         subtitle_text = self.subtitle_textedit.toPlainText()
-        if subtitle_text:
+        if subtitle_text:  # and self.translation_delay > 10:
             translator = Translator()
             try:
-                if subtitle_text.strip():  # Check if the subtitle text is not empty or contains only whitespace
+                if subtitle_text.strip() != '':  # Check if the subtitle text is not empty or contains only whitespace
                     translation = translator.translate(subtitle_text, dest=self.translation_language).text
 
                     # googletranslate version 3.0 breaks, version 3.1 needs to pass translation instead translation.text
                     self.translation_textedit.setPlainText(translation)
+                    # self.translation_delay = 0
                 else:
                     self.translation_textedit.clear()
             except Exception as e:
@@ -357,7 +340,7 @@ class VideoPlayer(QMainWindow):
                     self.current_video_path = node.path
 
                     # Set the media content without playing
-                    self.player.setMedia(QMediaContent(QUrl.fromLocalFile(node.path)))
+                    self.player.setSource(QUrl.fromLocalFile(node.path))
 
                     # Load video information
                     self.load_video_info()
@@ -438,18 +421,27 @@ class VideoPlayer(QMainWindow):
                     self.subtitle_list.append((start_time, end_time, text))
 
     def display_subtitle(self, position):
-        # Display the appropriate subtitle based on the current position
+        # Find the appropriate subtitle based on the current position
+        # It's only modifying the textedit field if there was an actual change
+        current_subtitle = self.subtitle_textedit.toPlainText()
         for start_time, end_time, text in self.subtitle_list:
             start_ms = time_to_milliseconds(start_time)
             end_ms = time_to_milliseconds(end_time)
             if start_ms <= position <= end_ms:
-                self.subtitle_textedit.setPlainText(text)
+                new_subtitle = text
+                if new_subtitle != current_subtitle:
+                    self.subtitle_textedit.setPlainText(new_subtitle)
                 break
+        else:
+            # If no subtitle found, clear the subtitle text
+            if current_subtitle != "":
+                self.subtitle_textedit.clear()
 
     def toggle_playback(self):
-        if self.player.state() == QMediaPlayer.PlayingState:
+        if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
             self.player.pause()
-            self.play_button.setIcon(QIcon(os.path.join(icon_path, "ico_play.png")))
+            self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_play.png")))
+
         else:
             index = self.tree_view.currentIndex()
             node = index.internalPointer()
@@ -467,31 +459,31 @@ class VideoPlayer(QMainWindow):
 
                 self.start_timer()
                 self.player.play()
-                self.play_button.setIcon(QIcon(os.path.join(icon_path, "ico_pause.png")))
+                self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_pause.png")))
             elif not node.is_folder:  # Check if the selected item is not a folder
                 # Show confirmation dialog
-                index_text = index.data(Qt.DisplayRole)
+                index_text = index.data(Qt.ItemDataRole.DisplayRole)
 
                 reply = QMessageBox.question(
                     self,
                     "Confirmation",
                     "Are you sure you want to start the lecture\n\n'" + index_text + "'?",
-                    QMessageBox.Yes | QMessageBox.No,
-                    QMessageBox.No
+                    QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
+                    QMessageBox.StandardButton.No
                 )
 
-                if reply == QMessageBox.Yes:
+                if reply == QMessageBox.StandardButton.Yes:
                     self.play_video(index)
 
                     self.start_timer()
                     self.player.play()
-                    self.play_button.setIcon(QIcon(os.path.join(icon_path, "ico_pause.png")))
+                    self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_pause.png")))
                     # Save the current video path to config.ini
                     self.settings.setValue("LastVideo", self.current_video_path)
 
     def stop_video(self):
         self.player.stop()
-        self.play_button.setIcon(QIcon(os.path.join(icon_path, "ico_play.png")))
+        self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_play.png")))
         # Stop the timer
         self.stop_timer()
 
@@ -513,7 +505,7 @@ class VideoPlayer(QMainWindow):
     def open_settings(self):
         dialog = SettingsDialog()
         dialog.languageChanged.connect(self.language_changed)
-        dialog.exec_()
+        dialog.exec()
 
     def update_duration(self, duration):
         self.timeline_slider.setRange(0, duration)
@@ -526,7 +518,7 @@ class VideoPlayer(QMainWindow):
         self.player.setPosition(position)
 
     def check_media_status(self, status):
-        if status == QMediaPlayer.EndOfMedia:
+        if status == QMediaPlayer.MediaStatus.EndOfMedia:
             index = self.tree_view.currentIndex()
             node = index.internalPointer()
             if os.path.isfile(node.path):
@@ -538,27 +530,31 @@ class VideoPlayer(QMainWindow):
 
     def start_timer(self):
         self.timer_running = 1
-        self.timer_label.setStyleSheet("background-color: #d1ede0")
+        if self.theme == "dark":
+            self.timer_label.setStyleSheet("background-color: #2e3436")
+        else:
+            self.timer_label.setStyleSheet("background-color: #d3d7cf")
 
     def stop_timer(self):
         self.timer_running = 0
         self.timer_label.setStyleSheet("")
 
     def save_last_file_played(self):
-        settings = QSettings(config_file, QSettings.IniFormat)
-        settings.setValue("LastVideo", self.current_video_path)
+        self.settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, config_file)
+        self.settings.setValue("LastVideo", self.current_video_path)
 
     def closeEvent(self, event):
 
         reply = QMessageBox.question(
             self, "Confirmation", "Are you sure you want to close?",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.No
+            QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No
         )
-        if reply == QMessageBox.Yes:
 
-            self.play_button.setIcon(QIcon(os.path.join(icon_path, "ico_play.png")))
-            self.save_video_info()
+        if reply == QMessageBox.StandardButton.Yes:
             self.player.stop()
+
+            self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_play.png")))
+            self.save_video_info()
             self.stop_timer()
 
             event.accept()
