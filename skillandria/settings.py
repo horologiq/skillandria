@@ -14,21 +14,21 @@ class SettingsDialog(QDialog):
         self.setWindowTitle("Settings")
         self.setFixedSize(400, 200)
 
-        layout = QVBoxLayout(self)
+        self.layout = QVBoxLayout(self)
 
-        self.settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, config_file)
+        self.settings = QSettings("skillandria")
 
         # Video Path Section
-        video_path_layout = QHBoxLayout()
+        self.video_path_layout = QHBoxLayout()
         self.video_path_label = QLabel("Video Path:")
         self.video_path_edit = QLineEdit()
         self.video_path_button = QPushButton("Browse...")
         self.video_path_button.clicked.connect(self.select_video_path)
-        video_path_layout.addWidget(self.video_path_edit)
-        video_path_layout.addWidget(self.video_path_button)
+        self.video_path_layout.addWidget(self.video_path_edit)
+        self.video_path_layout.addWidget(self.video_path_button)
 
         # Subtitle Language Section
-        subtitle_language_layout = QHBoxLayout()
+        self.subtitle_language_layout = QHBoxLayout()
         self.subtitle_language_label = QLabel("Subtitle Language:")
         self.subtitle_language_combo = QComboBox()
         self.subtitle_language_combo.currentIndexChanged.connect(self.language_changed)
@@ -37,25 +37,25 @@ class SettingsDialog(QDialog):
             "ms", "nl", "no", "pl", "pt", "ro", "ru", "sv", "th", "tr", "uk", "vi", "zh-cn", "zh-tw"
         ]
         self.subtitle_language_combo.addItems(self.subtitle_languages)
-        subtitle_language_layout.addWidget(self.subtitle_language_combo)
+        self.subtitle_language_layout.addWidget(self.subtitle_language_combo)
 
         # Theme Section
-        theme_layout = QHBoxLayout()
+        self.theme_layout = QHBoxLayout()
         self.theme_label = QLabel("Theme:")
         self.theme_checkbox = QCheckBox("Dark Theme")
 
-        theme_layout.addWidget(self.theme_label)
-        theme_layout.addWidget(self.theme_checkbox)
+        self.theme_layout.addWidget(self.theme_label)
+        self.theme_layout.addWidget(self.theme_checkbox)
 
-        save_button = QPushButton("Save")
-        save_button.clicked.connect(self.save_settings)
+        self.save_button = QPushButton("Save")
+        self.save_button.clicked.connect(self.save_settings)
 
-        layout.addWidget(self.video_path_label)
-        layout.addLayout(video_path_layout)
-        layout.addWidget(self.subtitle_language_label)
-        layout.addLayout(subtitle_language_layout)
-        layout.addLayout(theme_layout)
-        layout.addWidget(save_button)
+        self.layout.addWidget(self.video_path_label)
+        self.layout.addLayout(self.video_path_layout)
+        self.layout.addWidget(self.subtitle_language_label)
+        self.layout.addLayout(self.subtitle_language_layout)
+        self.layout.addLayout(self.theme_layout)
+        self.layout.addWidget(self.save_button)
 
         self.load_settings()
 

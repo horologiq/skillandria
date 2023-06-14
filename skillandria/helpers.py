@@ -2,20 +2,14 @@ import os
 import sys
 
 from PyQt6.QtCore import QSettings
-from PyQt6.QtCore import QStandardPaths
 from PyQt6.QtCore import QFile, QIODevice, QTextStream
-
-config_dir = os.path.join(os.path.abspath(QStandardPaths.standardLocations(QStandardPaths.StandardLocation.AppConfigLocation)[0]), 'skillandria')
-os.makedirs(config_dir, exist_ok=True)
-config_file = os.path.join(config_dir, 'skillandria')
-print(config_file)
 
 
 def get_icon_path(theme):
     base_path = os.path.abspath(os.path.dirname(__file__))
 
     if getattr(sys, 'frozen', False):
-        icon_path = os.path.join(base_path, '..', 'themes', theme)
+        icon_path = os.path.join(os.path.dirname(base_path), 'themes', theme)
     else:
         icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'themes', theme)
     return icon_path
@@ -27,7 +21,8 @@ def get_theme_path(theme):
 
     # Get the path to the icon files
     if getattr(sys, 'frozen', False):
-        theme_path = os.path.join(base_path, '..', 'themes', theme, 'style.qss')
+        theme_path = os.path.join(os.path.dirname(base_path), 'themes', theme, 'style.qss')
+        print(theme_path)
     else:
         theme_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'themes', theme, 'style.qss')
     return theme_path
@@ -45,7 +40,7 @@ def time_to_milliseconds(time_str):
 
 
 def load_folder_path():
-    settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, config_file)
+    settings = QSettings("skillandria")
     return settings.value("VideoPath", "")
 
 
@@ -57,7 +52,7 @@ def format_time(seconds):
 
 
 def load_translation_language():
-    settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, config_file)
+    settings = QSettings("skillandria")
     return settings.value("SubtitleLanguage", "es")
 
 

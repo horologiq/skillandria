@@ -16,12 +16,8 @@ class VideoPlayer(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
 
-        self.load_theme()
-
-        self.string_from_file = None
         self.subtitle_list = None
-        self.settings_dialog = None
-        self.settings = None
+        self.settings = QSettings("skillandria")
         self.setWindowTitle("Skillandria")
 
         self.resize(800, 600)
@@ -30,8 +26,10 @@ class VideoPlayer(QMainWindow):
         self.start_time = 0
         self.end_time = 0
 
-        if not os.path.exists(config_file):
+        if not os.path.exists(self.settings.fileName()):
             self.open_settings()
+
+        self.theme = self.load_theme()
 
         self.icon_path = get_icon_path(self.theme)
         self.theme_path = get_theme_path(self.theme)
@@ -39,7 +37,7 @@ class VideoPlayer(QMainWindow):
         self.translation_language = load_translation_language()
         self.folder_path = load_folder_path()
 
-        self.subtitle_connected = False  # Flag to track subtitle connection
+        self.subtitle_connected = False
 
         # Main widget
         self.central_widget = QWidget(self)
@@ -225,17 +223,19 @@ class VideoPlayer(QMainWindow):
 
     def load_theme(self):
         # Load the theme from the config.ini file
-        self.settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, config_file)
         if self.settings.value("DarkThemeEnabled") == "true":
-            self.theme = "dark"
+            self.setStyleSheet(load_stylesheet(get_theme_path("dark")))
+            self.repaint()
+
+            return "dark"
         else:
-            self.theme = "light"
-        self.setStyleSheet(load_stylesheet(get_theme_path(self.theme)))
-        self.repaint()
+            self.setStyleSheet(load_stylesheet(get_theme_path("light")))
+            self.repaint()
+
+            return "light"
 
     def load_last_played_video(self):
-        # Load the last played video from config.ini
-        self.settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, config_file)
+        # Load the last played video from config
         last_video = self.settings.value("LastVideo")
         if last_video is not None:
             self.string_from_file = last_video
@@ -285,9 +285,6 @@ class VideoPlayer(QMainWindow):
 
     def translate_subtitle(self):
 
-        # self.translation_delay = self.translation_delay + 1
-        # print(self.translation_delay)
-
         subtitle_text = self.subtitle_textedit.toPlainText()
         if subtitle_text:  # and self.translation_delay > 10:
             translator = Translator()
@@ -297,14 +294,12 @@ class VideoPlayer(QMainWindow):
 
                     # googletranslate version 3.0 breaks, version 3.1 needs to pass translation instead translation.text
                     self.translation_textedit.setPlainText(translation)
-                    # self.translation_delay = 0
                 else:
                     self.translation_textedit.clear()
             except Exception as e:
 
                 # print(f"translation.text: {self.translation}")
                 print(f"Translation error: {e}")
-                # Handle the exception here (show an error message, log the error, etc.)
         else:
             self.translation_textedit.clear()
 
@@ -531,16 +526,15 @@ class VideoPlayer(QMainWindow):
     def start_timer(self):
         self.timer_running = 1
         if self.theme == "dark":
-            self.timer_label.setStyleSheet("background-color: #2e3436")
+            self.timer_label.setStyleSheet("background-color: #59564e")
         else:
-            self.timer_label.setStyleSheet("background-color: #d3d7cf")
+            self.timer_label.setStyleSheet("background-color: #eae3d0")
 
     def stop_timer(self):
         self.timer_running = 0
         self.timer_label.setStyleSheet("")
 
     def save_last_file_played(self):
-        self.settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, config_file)
         self.settings.setValue("LastVideo", self.current_video_path)
 
     def closeEvent(self, event):

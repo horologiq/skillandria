@@ -1,17 +1,18 @@
 /* General styles */
 QWidget {
-    background-color: #FFFFFF;
+    background-color: #F0F0F0;
     color: #000000;
 }
 
 QTextEdit {
-    background-color: #FFFFFF;
+    background-color: #eae3d0;
     color: #000000;
+    font-weight: bold;
 }
 
 /* Button styles */
 QPushButton {
-    background-color: #F0F0F0;
+    background-color: #eae3d0;
     color: #000000;
 }
 
@@ -41,13 +42,13 @@ QSlider::handle:horizontal {
 
 /* TreeView styles */
 QTreeView {
-    background-color: #F0F0F0;
+    background-color: #FFFFFF;
     color: #000000;
 }
 
 QTreeView::item:selected {
-    background-color: #D0D0D0;
-    color: #000000;
+    background-color: #000000;
+    color: #FFFFFF;
 }
 
 /* Other specific styles as needed */

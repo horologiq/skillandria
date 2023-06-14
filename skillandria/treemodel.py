@@ -118,9 +118,9 @@ class VideoTreeModel(QAbstractItemModel):
         if role == Qt.ItemDataRole.BackgroundRole:
             if node.folder_name_matches(self.string_from_file):
                 if self.theme == "light":
-                    return QBrush(QColor(107, 107, 107))
+                    return QBrush(QColor( 234, 227, 208 ))
                 else:
-                    return QBrush(QColor(189, 189, 189))
+                    return QBrush(QColor( 89, 86, 78))
 
         if role == Qt.ItemDataRole.DecorationRole and index.column() == 1:
             if node.folder_name_matches(self.string_from_file):

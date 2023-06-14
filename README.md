@@ -17,9 +17,9 @@ It's witten in Python 3 and QT.
  - Speeding up / down controls
 
 ## Usage
- - On the first run, user must specify the folder containing courses and the language for subtitle translation
+ - On the first run, the user must specify the folder containing courses and the language for subtitle translation
  - The application will look for lectures, sorting them in a tree view
- - Navigation is done with a single click and video only starts / pauses through the big play button
+ - Navigation is done with a single click and video only starts / pauses clicking the big play button
  - Timer tracks how much the user spent on every lecture (even paused, this is an intended behaviour)
  - Graduation cap icon points to the last lecture from the last session, a checkmark appears next to finished lectures
 

@@ -5,13 +5,15 @@ QWidget {
 }
 
 QTextEdit {
-    background-color: #1F1F1F;
+    background-color: #59564e;
     color: #FFFFFF;
+    font-weight: bold;
+
 }
 
 /* Button styles */
 QPushButton {
-    background-color: #2F2F2F;
+    background-color: #59564e;
     color: #FFFFFF;
 }
 
@@ -46,8 +48,8 @@ QTreeView {
 }
 
 QTreeView::item:selected {
-    background-color: #4F4F4F;
-    color: #FFFFFF;
+    background-color: #FFFFFF;
+    color: #000000;
 }
 
 /* Other specific styles as needed */
