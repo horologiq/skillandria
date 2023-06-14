@@ -5,7 +5,7 @@ It's not aiming to be rich on features but to allow a clean environment to focus
 
 It's witten in Python 3 and QT.
 
-![Alt text](skillandria.png "Goya in Action")
+![Alt text](skillandria.png "Skillandria in Action")
 
 
 ## Features
@@ -29,4 +29,4 @@ It's witten in Python 3 and QT.
 
 
 ## License
-Skillandria is Free Software under the GNU General Public License 
+Skillandria is written by P. Cervantes and licensed as Free Software under the GNU General Public License 
