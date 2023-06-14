@@ -5,15 +5,17 @@ from PyQt6.QtCore import QSettings
 from PyQt6.QtCore import QStandardPaths
 from PyQt6.QtCore import QFile, QIODevice, QTextStream
 
-config_dir = QStandardPaths.standardLocations(QStandardPaths.StandardLocation.AppConfigLocation)[0]
-config_file = f"{config_dir}/skillandria"
+config_dir = os.path.join(os.path.abspath(QStandardPaths.standardLocations(QStandardPaths.StandardLocation.AppConfigLocation)[0]), 'skillandria')
+os.makedirs(config_dir, exist_ok=True)
+config_file = os.path.join(config_dir, 'skillandria')
+print(config_file)
 
 
 def get_icon_path(theme):
     base_path = os.path.abspath(os.path.dirname(__file__))
 
     if getattr(sys, 'frozen', False):
-        icon_path = os.path.join(base_path, '../themes', theme)
+        icon_path = os.path.join(base_path, '..', 'themes', theme)
     else:
         icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'themes', theme)
     return icon_path
@@ -25,7 +27,7 @@ def get_theme_path(theme):
 
     # Get the path to the icon files
     if getattr(sys, 'frozen', False):
-        theme_path = os.path.join(base_path, '../themes', theme, 'style.qss')
+        theme_path = os.path.join(base_path, '..', 'themes', theme, 'style.qss')
     else:
         theme_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'themes', theme, 'style.qss')
     return theme_path

@@ -16,6 +16,8 @@ class SettingsDialog(QDialog):
 
         layout = QVBoxLayout(self)
 
+        self.settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, config_file)
+
         # Video Path Section
         video_path_layout = QHBoxLayout()
         self.video_path_label = QLabel("Video Path:")
@@ -64,16 +66,12 @@ class SettingsDialog(QDialog):
         self.video_path_edit.setText(video_path)
 
     def load_settings(self):
-        self.settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, config_file)
         video_path = self.settings.value("VideoPath")
         subtitle_language = self.settings.value("SubtitleLanguage")
 
-        # Check if the key exists
         if self.settings.contains("DarkThemeEnabled"):
-            # Key exists, retrieve the value
             dark_theme_enabled = self.settings.value("DarkThemeEnabled", type=bool)
         else:
-            # Key does not exist, default to False
             dark_theme_enabled = False
 
         self.video_path_edit.setText(video_path)
@@ -85,7 +83,6 @@ class SettingsDialog(QDialog):
         subtitle_language = self.subtitle_language_combo.currentText()
         dark_theme_enabled = self.theme_checkbox.isChecked()
 
-        self.settings = QSettings(QSettings.Format.IniFormat, QSettings.Scope.UserScope, config_file)
         self.settings.setValue("VideoPath", video_path)
         self.settings.setValue("SubtitleLanguage", subtitle_language)
         self.settings.setValue("DarkThemeEnabled", dark_theme_enabled)
