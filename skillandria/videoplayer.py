@@ -21,7 +21,6 @@ class VideoPlayer(QMainWindow):
         self.setWindowTitle("Skillandria")
 
         self.resize(800, 600)
-        self.translation_delay = 0
 
         self.start_time = 0
         self.end_time = 0

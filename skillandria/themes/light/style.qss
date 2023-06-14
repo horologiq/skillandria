@@ -51,4 +51,7 @@ QTreeView::item:selected {
     color: #FFFFFF;
 }
 
-/* Other specific styles as needed */
+QAbstractItemView QHeaderView {
+    background-color: #F0F0F0;
+    color: #000000;
+}

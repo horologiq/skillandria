@@ -22,7 +22,6 @@ def get_theme_path(theme):
     # Get the path to the icon files
     if getattr(sys, 'frozen', False):
         theme_path = os.path.join(os.path.dirname(base_path), 'themes', theme, 'style.qss')
-        print(theme_path)
     else:
         theme_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'themes', theme, 'style.qss')
     return theme_path
