@@ -56,3 +56,8 @@ QAbstractItemView QHeaderView {
     background-color: #1F1F1F;
     color: #FFFFFF;
 }
+
+QAbstractItemView::section QHeaderView::section {
+    background-color: #1F1F1F;
+    color: #FFFFFF;
+}

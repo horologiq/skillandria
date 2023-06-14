@@ -510,6 +510,7 @@ class VideoPlayer(QMainWindow):
 
     def set_position(self, position):
         self.player.setPosition(position)
+        self.current_video_position = position
 
     def check_media_status(self, status):
         if status == QMediaPlayer.MediaStatus.EndOfMedia:
@@ -544,10 +545,11 @@ class VideoPlayer(QMainWindow):
         )
 
         if reply == QMessageBox.StandardButton.Yes:
-            self.player.stop()
 
             self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_play.png")))
             self.save_video_info()
+            self.player.stop()
+
             self.stop_timer()
 
             event.accept()
