@@ -5,6 +5,9 @@ from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter, \
     QPushButton, QSlider, QTextEdit, QLabel, QGridLayout, QFrame, QMessageBox, \
     QHeaderView, QSpacerItem, QSizePolicy, QTreeView
+
+import sqlite3
+
 from googletrans import Translator
 
 from skillandria.helpers import *
@@ -19,6 +22,15 @@ class VideoPlayer(QMainWindow):
         self.subtitle_list = None
         self.settings = QSettings("skillandria")
         self.setWindowTitle("Skillandria")
+
+
+
+        # SQL
+        self.connection = sqlite3.connect(db_path())
+        self.cursor = self.connection.cursor()
+        self.cursor.execute(
+            "CREATE TABLE IF NOT EXISTS videos (path TEXT PRIMARY KEY, position INTEGER, played INTEGER, timer INTEGER)")
+        self.connection.commit()
 
         self.resize(800, 600)
 
@@ -40,6 +52,7 @@ class VideoPlayer(QMainWindow):
 
         # Main widget
         self.central_widget = QWidget(self)
+
         self.setCentralWidget(self.central_widget)
         self.layout = QHBoxLayout(self.central_widget)
 
@@ -106,9 +119,9 @@ class VideoPlayer(QMainWindow):
         self.timer_label = QLabel("00:00:00")
 
         # Set frame properties for the labels
-        self.filename_label.setFrameShape(QFrame.Shape.StyledPanel)
-        self.lesson_name.setFrameShape(QFrame.Shape.StyledPanel)
-        self.timer_label.setFrameShape(QFrame.Shape.StyledPanel)
+        self.filename_label.setFrameShape(QFrame.Shape.HLine)
+        self.lesson_name.setFrameShape(QFrame.Shape.HLine)
+        self.timer_label.setFrameShape(QFrame.Shape.Panel)
 
         # Apply bold font to the filename label
         self.filename_label.setStyleSheet("font-weight: bold;")
@@ -221,7 +234,6 @@ class VideoPlayer(QMainWindow):
         self.show()
 
     def load_theme(self):
-        # Load the theme from the config.ini file
         if self.settings.value("DarkThemeEnabled") == "true":
             self.setStyleSheet(load_stylesheet(get_theme_path("dark")))
             self.repaint()
@@ -343,6 +355,8 @@ class VideoPlayer(QMainWindow):
                     self.subtitle_textedit.clear()
                     self.translation_textedit.clear()
 
+                    self.player.setPosition(self.current_video_position)  # Set the position in the media player
+
                     # Load and show subtitles if available
                     subtitle_path = os.path.splitext(node.path)[0] + ".srt"
                     if os.path.isfile(subtitle_path):
@@ -364,42 +378,19 @@ class VideoPlayer(QMainWindow):
 
     def save_video_info(self):
         if self.current_video_path:
-            self.save_last_file_played()
-            base_path = os.path.dirname(os.path.abspath(self.current_video_path))
-            video_name = os.path.basename(self.current_video_path)
-            info_path = os.path.join(base_path, os.path.splitext(video_name)[0] + ".nfo")
-            with open(info_path, "w") as info_file:
-                info_file.write(f"[Session]\n")
-                info_file.write(f"Position={self.current_video_position}\n")
-                info_file.write(f"Played={self.current_video_played}\n")
-                info_file.write(f"Timer={self.current_video_timer}\n")  # Save the timer value
+            self.cursor.execute("INSERT OR REPLACE INTO videos (path, position, played, timer) VALUES (?, ?, ?, ?)",
+                                (self.current_video_path, self.current_video_position, self.current_video_played,
+                                 self.current_video_timer))
+            self.connection.commit()
 
     def load_video_info(self):
         if self.current_video_path:
-            base_path = os.path.dirname(os.path.abspath(self.current_video_path))
-            video_name = os.path.basename(self.current_video_path)
-            info_path = os.path.join(base_path, os.path.splitext(video_name)[0] + ".nfo")
-            if os.path.isfile(info_path):
-                with open(info_path, "r") as info_file:
-                    lines = info_file.readlines()
-                    for line in lines:
-                        if line.startswith("Position="):
-                            position = int(line.split("=")[1].strip()) / 1000  # Convert position to seconds
-                            self.current_video_position = position
-                            self.timeline_slider.setMaximum(
-                                int(self.player.duration() / 1000))  # Set maximum value in seconds as an integer
-                            self.timeline_slider.setValue(int(position))
-                            self.player.setPosition(int(position * 1000))  # Convert position to milliseconds
-                        elif line.startswith("Played="):
-                            played = line.split("=")[1].strip().lower()
-                            self.current_video_played = (played == "true")
-                            index = self.tree_view.currentIndex()
-                            node = index.internalPointer()
-                            node.played = self.current_video_played
-                            self.tree_view.update(index)
-                        elif line.startswith("Timer="):
-                            tracked_time = int(line.split("=")[1].strip())  # Convert position to seconds
-                            self.current_video_timer = tracked_time
+            self.cursor.execute("SELECT position, played, timer FROM videos WHERE path=?", (self.current_video_path,))
+            result = self.cursor.fetchone()
+            if result:
+                self.current_video_position = result[0]
+                self.current_video_played = bool(result[1])
+                self.current_video_timer = result[2]
 
     def parse_subtitles(self, subtitles):
         # Parse the subtitles and store them in the subtitle_list
@@ -427,7 +418,6 @@ class VideoPlayer(QMainWindow):
                     self.subtitle_textedit.setPlainText(new_subtitle)
                 break
         else:
-            # If no subtitle found, clear the subtitle text
             if current_subtitle != "":
                 self.subtitle_textedit.clear()
 
@@ -440,10 +430,7 @@ class VideoPlayer(QMainWindow):
             index = self.tree_view.currentIndex()
             node = index.internalPointer()
 
-            # Get the selected video path
             selected_video_path = node.path
-
-            # Get the path of the current video
             current_video_path = self.current_video_path
 
             if selected_video_path == current_video_path:
@@ -454,8 +441,7 @@ class VideoPlayer(QMainWindow):
                 self.start_timer()
                 self.player.play()
                 self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_pause.png")))
-            elif not node.is_folder:  # Check if the selected item is not a folder
-                # Show confirmation dialog
+            elif not node.is_folder:
                 index_text = index.data(Qt.ItemDataRole.DisplayRole)
 
                 reply = QMessageBox.question(
@@ -465,20 +451,16 @@ class VideoPlayer(QMainWindow):
                     QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No,
                     QMessageBox.StandardButton.No
                 )
-
                 if reply == QMessageBox.StandardButton.Yes:
                     self.play_video(index)
-
                     self.start_timer()
                     self.player.play()
                     self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_pause.png")))
-                    # Save the current video path to config.ini
                     self.settings.setValue("LastVideo", self.current_video_path)
 
     def stop_video(self):
         self.player.stop()
         self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_play.png")))
-        # Stop the timer
         self.stop_timer()
 
     def toggle_full_screen(self):
@@ -551,6 +533,8 @@ class VideoPlayer(QMainWindow):
             self.player.stop()
 
             self.stop_timer()
+            self.connection.close()
+            super().closeEvent(event)
 
             event.accept()
         else:

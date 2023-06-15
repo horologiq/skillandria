@@ -1,8 +1,16 @@
 import os
 import sys
+import appdirs
 
 from PyQt6.QtCore import QSettings
 from PyQt6.QtCore import QFile, QIODevice, QTextStream
+
+
+def db_path():
+    data_dir = appdirs.user_data_dir(appname='skillandria')
+    os.makedirs(data_dir, exist_ok=True)
+    path = os.path.join(data_dir, 'video_data.db')
+    return path
 
 
 def get_icon_path(theme):

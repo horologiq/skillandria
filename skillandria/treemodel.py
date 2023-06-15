@@ -1,5 +1,6 @@
 import datetime
 import re
+import sqlite3
 
 from PyQt6.QtCore import QAbstractItemModel, QModelIndex, Qt
 from PyQt6.QtGui import QFont, QIcon, QBrush, QColor
@@ -12,11 +13,24 @@ from skillandria.treenode import *
 class VideoTreeModel(QAbstractItemModel):
     def __init__(self, folder_path, string_from_file, icon_path, theme):
         super().__init__()
+        self.db_connection = sqlite3.connect(db_path())
+        self.create_table()
         self.icon_path = icon_path
         self.theme = theme
         self.string_from_file = string_from_file
         self.root_node = self.create_tree(folder_path)
         self.duration_cache = {}
+
+    def create_table(self):
+        query = '''
+            CREATE TABLE IF NOT EXISTS videos (
+                path TEXT PRIMARY KEY,
+                played INTEGER,
+                timer INTEGER
+            )
+        '''
+        self.db_connection.execute(query)
+        self.db_connection.commit()
 
     def human_sort_key(self, name):
         parts = re.split(r'(\d+)', name)
@@ -27,29 +41,26 @@ class VideoTreeModel(QAbstractItemModel):
         return any(file_path.lower().endswith(extension) for extension in video_extensions)
 
     def read_played_status(self, file_path):
-        played = False
-        nfo_file_path = os.path.splitext(file_path)[0] + ".nfo"
-        if os.path.isfile(nfo_file_path):
-            with open(nfo_file_path, "r") as nfo_file:
-                for line in nfo_file:
-                    if line.strip().startswith("Played="):
-                        played_value = line.strip().split("=")[1]
-                        played = played_value.lower() == "true"
-                        break
-        return played
+        query = 'SELECT played FROM videos WHERE path = ?'
+        result = self.db_connection.execute(query, (file_path,)).fetchone()
+        return result[0] if result else False
 
     def read_spent_time(self, file_path):
-        spent_time = 0
-        nfo_file_path = os.path.splitext(file_path)[0] + ".nfo"
-        if os.path.isfile(nfo_file_path):
-            with open(nfo_file_path, "r") as nfo_file:
-                for line in nfo_file:
-                    if line.strip().startswith("Timer="):
-                        spent_time = int(line.strip().split("=")[1])
-                        break
-
+        query = 'SELECT timer FROM videos WHERE path = ?'
+        result = self.db_connection.execute(query, (file_path,)).fetchone()
+        spent_time = result[0] if result else 0
         spent_time_str = format_time(spent_time)
         return spent_time_str
+
+    def update_played_status(self, file_path, played):
+        query = 'INSERT OR REPLACE INTO videos (path, played) VALUES (?, ?)'
+        self.db_connection.execute(query, (file_path, played))
+        self.db_connection.commit()
+
+    def update_spent_time(self, file_path, spent_time):
+        query = 'INSERT OR REPLACE INTO videos (path, timer) VALUES (?, ?)'
+        self.db_connection.execute(query, (file_path, spent_time))
+        self.db_connection.commit()
 
     def rowCount(self, parent):
         if not parent.isValid():
@@ -74,7 +85,7 @@ class VideoTreeModel(QAbstractItemModel):
             elif section == 2:
                 return "Duration"
             elif section == 3:
-                return "Spent"
+                return "Timer"
 
         return super().headerData(section, orientation, role)
 
@@ -118,9 +129,9 @@ class VideoTreeModel(QAbstractItemModel):
         if role == Qt.ItemDataRole.BackgroundRole:
             if node.folder_name_matches(self.string_from_file):
                 if self.theme == "light":
-                    return QBrush(QColor( 234, 227, 208 ))
+                    return QBrush(QColor(234, 227, 208))
                 else:
-                    return QBrush(QColor( 89, 86, 78))
+                    return QBrush(QColor(89, 86, 78))
 
         if role == Qt.ItemDataRole.DecorationRole and index.column() == 1:
             if node.folder_name_matches(self.string_from_file):

@@ -1,8 +1,29 @@
 /* General styles */
-QWidget {
-    background-color: #1F1F1F;
-    color: #FFFFFF;
+
+/*-----QWidget-----*/
+QWidget
+{
+	background-color: qlineargradient(spread:repeat, x1:1, y1:0, x2:1, y2:1, stop:0 rgba(115, 115, 115, 255),stop:1 rgba(40, 40, 40, 255));
+	color: #ffffff;
+	border-color: #051a39;
+
 }
+
+/*-----QLabel-----*/
+QLabel
+{
+	background-color: transparent;
+	color: #ffffff;
+
+}
+
+QLabel::disabled
+{
+	background-color: transparent;
+	color: #ffffff;
+
+}
+
 
 QTextEdit {
     background-color: #59564e;
@@ -11,35 +32,58 @@ QTextEdit {
 
 }
 
-/* Button styles */
-QPushButton {
-    background-color: #59564e;
-    color: #FFFFFF;
+/*-----QPushButton-----*/
+QPushButton
+{
+	background-color: qlineargradient(spread:repeat, x1:0.486, y1:0, x2:0.505, y2:1, stop:0.00480769 rgba(131, 97, 0, 255),stop:1 rgba(170, 141, 59, 255));
+	color: #ffffff;
+	font-weight: bold;
+	border-style: solid;
+	border-width: 1px;
+	border-radius: 3px;
+	border-color: #051a39;
+	padding: 5px;
+
 }
 
-QPushButton:hover {
-    background-color: #3F3F3F;
+
+QPushButton::disabled
+{
+	background-color: #404040;
+	color: #656565;
+	border-color: #051a39;
+
 }
 
-QPushButton:pressed {
-    background-color: #4F4F4F;
+
+QPushButton::hover
+{
+	background-color: #9c0000;
+	color: #ffffff;
+	border-style: solid;
+	border-width: 1px;
+	border-radius: 3px;
+	border-color: #051a39;
+	padding: 5px;
+
 }
 
-/* Slider styles */
-QSlider {
-    background-color: #2F2F2F;
+
+QPushButton::pressed
+{
+	background-color: #880000;
+	color: #ffffff;
+	border-style: solid;
+	border-width: 2px;
+	border-radius: 3px;
+	border-color: #000000;
+	padding: 5px;
+
 }
 
-QSlider::groove:horizontal {
-    background-color: #4F4F4F;
-    height: 8px;
-}
 
-QSlider::handle:horizontal {
-    background-color: #7F7F7F;
-    width: 16px;
-    margin: -8px;
-}
+
+
 
 /* TreeView styles */
 QTreeView {
@@ -57,7 +101,133 @@ QAbstractItemView QHeaderView {
     color: #FFFFFF;
 }
 
-QAbstractItemView::section QHeaderView::section {
+
+
+QHeaderView::section
+{
+    background-color: #282830;
+    color: #fff;
+
+}
+
+/*-----QSlider-----*/
+QSlider{
+	background-color: transparent;
+
+}
+
+
+QSlider::groove:horizontal
+{
+	background-color: transparent;
+	height: 6px;
+
+}
+
+
+QSlider::sub-page:horizontal
+{
+	background-color: qlineargradient(spread:reflect, x1:1, y1:0, x2:1, y2:1, stop:0.00480769 rgba(201, 201, 201, 255),stop:1 rgba(72, 72, 72, 255));
+	border: 1px solid #000;
+
+}
+
+
+QSlider::add-page:horizontal
+{
+	background-color: #404040;
+	border: 1px solid #000;
+
+}
+
+
+QSlider::handle:horizontal
+{
+	background-color: qlineargradient(spread:reflect, x1:1, y1:0, x2:1, y2:1, stop:0.00480769 rgba(201, 201, 201, 255),stop:1 rgba(72, 72, 72, 255));
+	border: 1px solid #000;
+	width: 12px;
+	margin-top: -6px;
+	margin-bottom: -6px;
+
+}
+
+
+QSlider::handle:horizontal:hover
+{
+	background-color: #808080;
+
+}
+
+
+QSlider::sub-page:horizontal:disabled
+{
+	background-color: #bbb;
+	border-color: #999;
+
+}
+
+
+QSlider::add-page:horizontal:disabled
+{
+	background-color: #eee;
+	border-color: #999;
+
+}
+
+
+QSlider::handle:horizontal:disabled
+{
+	background-color: #eee;
+	border: 1px solid #aaa;
+
+}
+
+
+/*-----QScrollBar-----*/
+QScrollBar:horizontal
+{
     background-color: #1F1F1F;
-    color: #FFFFFF;
+
+}
+
+
+QScrollBar:vertical
+{
+	background-color: #1F1F1F;
+
+}
+
+QScrollBar::handle:horizontal
+{
+	background-color: qlineargradient(spread:reflect, x1:1, y1:0, x2:1, y2:1, stop:0.00480769 rgba(201, 201, 201, 255),stop:1 rgba(72, 72, 72, 255));
+    border: 1px solid #777777;
+
+}
+
+QScrollBar::handle:vertical
+{
+	background-color: qlineargradient(spread:reflect, x1:1, y1:0, x2:1, y2:1, stop:0.00480769 rgba(201, 201, 201, 255),stop:1 rgba(72, 72, 72, 255));
+    border: 1px solid #777777;
+
+
+}
+
+QScrollBar::add-line:horizontal {
+      border: none;
+      background: none;
+}
+
+QScrollBar::sub-line:horizontal {
+      border: none;
+      background: none;
+}
+
+QScrollBar::add-line:vertical {
+      border: none;
+      background: none;
+}
+
+QScrollBar::sub-line:vertical {
+      border: none;
+      background: none;
 }
