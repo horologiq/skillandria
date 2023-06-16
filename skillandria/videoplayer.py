@@ -4,38 +4,33 @@ from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter, \
     QPushButton, QSlider, QTextEdit, QLabel, QGridLayout, QFrame, QMessageBox, \
-    QHeaderView, QSpacerItem, QSizePolicy, QTreeView
-
-import sqlite3
+    QHeaderView, QSpacerItem, QSizePolicy, QTreeView, QInputDialog, QListWidget, QListWidgetItem
 
 from googletrans import Translator
 
 from skillandria.helpers import *
+from skillandria.time_conversion import *
 from skillandria.settings import SettingsDialog
 from skillandria.treemodel import VideoTreeModel
+from skillandria.bookmarks_db import BookmarksDatabase
 
 
 class VideoPlayer(QMainWindow):
     def __init__(self, parent=None):
         super().__init__(parent)
 
+        self.bookmarks_db = BookmarksDatabase()
+
         self.subtitle_list = None
         self.settings = QSettings("skillandria")
         self.setWindowTitle("Skillandria")
-
-
-
-        # SQL
-        self.connection = sqlite3.connect(db_path())
-        self.cursor = self.connection.cursor()
-        self.cursor.execute(
-            "CREATE TABLE IF NOT EXISTS videos (path TEXT PRIMARY KEY, position INTEGER, played INTEGER, timer INTEGER)")
-        self.connection.commit()
 
         self.resize(800, 600)
 
         self.start_time = 0
         self.end_time = 0
+
+        self.bookmark_list = []
 
         if not os.path.exists(self.settings.fileName()):
             self.open_settings()
@@ -150,6 +145,13 @@ class VideoPlayer(QMainWindow):
         self.total_time = 0
         self.timer_running = 0
 
+        # Slider
+        self.timeline_slider = QSlider(Qt.Orientation.Horizontal, self)
+        self.timeline_slider.setRange(0, 0)
+        self.timeline_slider.sliderMoved.connect(self.set_position)
+
+        self.right_section_layout.addWidget(self.timeline_slider)
+
         # Playlist
         self.tree_view = QTreeView(self)
 
@@ -172,6 +174,20 @@ class VideoPlayer(QMainWindow):
         header_view.setContextMenuPolicy(Qt.ContextMenuPolicy.CustomContextMenu)
 
         self.right_section_layout.addWidget(self.tree_view)
+
+        # Bookmarks
+        self.bookmarks_frame = QListWidget(self)
+        self.bookmarks_frame.setStyleSheet("QFrame { border: none; }")
+        self.right_section_layout.addWidget(self.bookmarks_frame)
+
+        self.bookmarks_frame.itemDoubleClicked.connect(self.go_to_bookmark)
+
+        self.bookmarks_layout = QVBoxLayout(self.bookmarks_frame)
+        self.bookmarks_frame.setLayout(self.bookmarks_layout)
+
+        # Adjust size policy and stretch factor
+        self.bookmarks_frame.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
+        self.right_section_layout.setStretch(1, 1)
 
         # Buttons row
         self.button_layout = QHBoxLayout()
@@ -196,19 +212,16 @@ class VideoPlayer(QMainWindow):
         self.double_speed_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_fast.png")))
         self.button_layout.addWidget(self.double_speed_button)
 
+        self.bookmark_button = QPushButton("Add Bookmark", self)
+        self.bookmark_button.clicked.connect(self.create_bookmark)
+        self.right_section_layout.addWidget(self.bookmark_button)
+
         self.settings_button = QPushButton("", self)
         self.settings_button.clicked.connect(self.open_settings)
         self.settings_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_config.png")))
         self.button_layout.addWidget(self.settings_button)
 
         self.right_section_layout.addLayout(self.button_layout)
-
-        # Slider
-        self.timeline_slider = QSlider(Qt.Orientation.Horizontal, self)
-        self.timeline_slider.setRange(0, 0)
-        self.timeline_slider.sliderMoved.connect(self.set_position)
-
-        self.right_section_layout.addWidget(self.timeline_slider)
 
         # Create a container widget for the timer and control buttons
         self.control_container = QWidget(self)
@@ -232,6 +245,36 @@ class VideoPlayer(QMainWindow):
         self.right_section_size = self.right_section.sizeHint().width()
 
         self.show()
+
+    def create_bookmark(self):
+        current_position = self.player.position()
+        comment, ok = QInputDialog.getText(self, "Bookmark", "Enter a comment for the bookmark:")
+        if ok and comment:
+            video_file = self.current_video_path
+            bookmark = (video_file, current_position, comment)
+            self.bookmark_list.append(bookmark)
+            self.bookmarks_db.save_bookmark(bookmark)
+
+            # Create a list item to display the bookmark
+            item = QListWidgetItem(f"{milliseconds_to_time(current_position)} - {comment}")
+            item.setData(Qt.ItemDataRole.UserRole, current_position)  # Store the position as data
+            self.bookmarks_frame.addItem(item)
+
+    def go_to_bookmark(self, item):
+        position = item.data(Qt.ItemDataRole.UserRole)
+        self.player.setPosition(position)
+
+    def load_bookmarks(self, video_file):
+        self.bookmark_list = self.bookmarks_db.get_bookmarks_for_video(video_file)
+
+        self.bookmarks_frame.clear()
+
+        for bookmark in self.bookmark_list:
+            position = bookmark[1]
+            comment = bookmark[2]
+            item = QListWidgetItem(f"{milliseconds_to_time(position)} - {comment}")
+            item.setData(Qt.ItemDataRole.UserRole, position)  # Store the position as data
+            self.bookmarks_frame.addItem(item)
 
     def load_theme(self):
         if self.settings.value("DarkThemeEnabled") == "true":
@@ -336,20 +379,27 @@ class VideoPlayer(QMainWindow):
             if os.path.isfile(node.path):
                 if self.current_video_path != node.path:
                     # Save information for the current video before switching
-                    self.save_video_info()
+                    self.model.save_video_info(self.current_video_path, self.current_video_position,
+                                               self.current_video_played, self.current_video_timer)
 
                     # Only reset the timer if switching to a different video
                     self.current_video_timer = 0
                     self.current_video_position = 0
                     self.current_video_played = False
-
                     self.current_video_path = node.path
 
                     # Set the media content without playing
                     self.player.setSource(QUrl.fromLocalFile(node.path))
 
                     # Load video information
-                    self.load_video_info()
+                    self.current_video_position = self.model.load_video_position(self.current_video_path)
+                    print(self.current_video_path)
+                    print(self.current_video_position)
+                    self.current_video_played = self.model.load_video_played(self.current_video_path)
+                    self.current_video_timer = self.model.load_video_timer(self.current_video_path)
+
+                    # Load bookmarks
+                    self.load_bookmarks(self.current_video_path)
 
                     self.timeline_slider.setRange(0, self.player.duration())
                     self.subtitle_textedit.clear()
@@ -375,22 +425,6 @@ class VideoPlayer(QMainWindow):
                             self.subtitle_connected = False
 
                 self.update_video_info()
-
-    def save_video_info(self):
-        if self.current_video_path:
-            self.cursor.execute("INSERT OR REPLACE INTO videos (path, position, played, timer) VALUES (?, ?, ?, ?)",
-                                (self.current_video_path, self.current_video_position, self.current_video_played,
-                                 self.current_video_timer))
-            self.connection.commit()
-
-    def load_video_info(self):
-        if self.current_video_path:
-            self.cursor.execute("SELECT position, played, timer FROM videos WHERE path=?", (self.current_video_path,))
-            result = self.cursor.fetchone()
-            if result:
-                self.current_video_position = result[0]
-                self.current_video_played = bool(result[1])
-                self.current_video_timer = result[2]
 
     def parse_subtitles(self, subtitles):
         # Parse the subtitles and store them in the subtitle_list
@@ -443,6 +477,9 @@ class VideoPlayer(QMainWindow):
                 self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_pause.png")))
             elif not node.is_folder:
                 index_text = index.data(Qt.ItemDataRole.DisplayRole)
+
+                if index_text is None:
+                    index_text = ""
 
                 reply = QMessageBox.question(
                     self,
@@ -529,13 +566,14 @@ class VideoPlayer(QMainWindow):
         if reply == QMessageBox.StandardButton.Yes:
 
             self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_play.png")))
-            self.save_video_info()
+            self.model.save_video_info(self.current_video_path, self.current_video_position, self.current_video_played, self.current_video_timer)
             self.player.stop()
 
             self.stop_timer()
-            self.connection.close()
-            super().closeEvent(event)
+            self.model.close_database()
 
             event.accept()
+            super().closeEvent(event)
+
         else:
             event.ignore()

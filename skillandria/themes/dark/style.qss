@@ -231,3 +231,15 @@ QScrollBar::sub-line:vertical {
       border: none;
       background: none;
 }
+
+
+
+QListWidget {
+    background-color: #2F2F2F;
+    color: #FFFFFF;
+}
+
+QListWidget::item:selected {
+    background-color: #FFFFFF;
+    color: #000000;
+}

@@ -6,7 +6,14 @@ from PyQt6.QtCore import QSettings
 from PyQt6.QtCore import QFile, QIODevice, QTextStream
 
 
-def db_path():
+def get_bookmark_db_path():
+    data_dir = appdirs.user_data_dir(appname='skillandria')
+    os.makedirs(data_dir, exist_ok=True)
+    path = os.path.join(data_dir, 'bookmarks.db')
+    return path
+
+
+def get_db_path():
     data_dir = appdirs.user_data_dir(appname='skillandria')
     os.makedirs(data_dir, exist_ok=True)
     path = os.path.join(data_dir, 'video_data.db')
@@ -35,27 +42,9 @@ def get_theme_path(theme):
     return theme_path
 
 
-def time_to_milliseconds(time_str):
-    parts = time_str.split(":")
-    hours = int(parts[0])
-    minutes = int(parts[1])
-    seconds = parts[2].replace(",", ".")
-    milliseconds = int(float(seconds) * 1000)
-    milliseconds += hours * 60 * 60 * 1000
-    milliseconds += minutes * 60 * 1000
-    return milliseconds
-
-
 def load_folder_path():
     settings = QSettings("skillandria")
     return settings.value("VideoPath", "")
-
-
-def format_time(seconds):
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    seconds = int(seconds % 60)
-    return "{:01d}:{:02d}:{:02d}".format(hours, minutes, seconds)
 
 
 def load_translation_language():
