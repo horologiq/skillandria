@@ -1,25 +1,23 @@
-import datetime
 import re
 
 from PyQt6.QtCore import QAbstractItemModel, QModelIndex, Qt
 from PyQt6.QtGui import QFont, QIcon, QBrush, QColor
-from moviepy.editor import VideoFileClip
 
-from skillandria.main_db import MainDatabase
+from main_db import *
 from skillandria.treenode import *
+from skillandria.helpers import *
 
 
 class VideoTreeModel(QAbstractItemModel):
     def __init__(self, folder_path, string_from_file, icon_path, theme):
         super().__init__()
 
-        self.main_db = MainDatabase()
+        self.db_worker = MainDatabase()
 
         self.icon_path = icon_path
         self.theme = theme
         self.string_from_file = string_from_file
         self.root_node = self.create_tree(folder_path)
-        self.duration_cache = {}
 
     @staticmethod
     def human_sort_key(name):
@@ -43,17 +41,13 @@ class VideoTreeModel(QAbstractItemModel):
         return parent_node.child_count()
 
     def columnCount(self, parent):
-        return 4
+        return 2
 
     def headerData(self, section, orientation, role):
         if orientation == Qt.Orientation.Horizontal and role == Qt.ItemDataRole.DisplayRole:
             if section == 0:
                 return "Lecture"
             elif section == 1:
-                return "Flag"
-            elif section == 2:
-                return "Duration"
-            elif section == 3:
                 return "Timer"
 
         return super().headerData(section, orientation, role)
@@ -73,11 +67,8 @@ class VideoTreeModel(QAbstractItemModel):
                     return name_without_extension
                 else:
                     return file_name
-            elif index.column() == 2 and os.path.isfile(node.path):
-                duration = self.get_video_duration(node.path)
-                return str(duration)
-            elif column == 3 and os.path.isfile(node.path):
-                spent = self.main_db.read_spent_time(node.path)
+            elif column == 1 and os.path.isfile(node.path):
+                spent = self.db_worker.read_spent_time(node.path)
                 return str(spent)
 
         if role == Qt.ItemDataRole.FontRole and os.path.isdir(node.path):
@@ -102,29 +93,15 @@ class VideoTreeModel(QAbstractItemModel):
                 else:
                     return QBrush(QColor(89, 86, 78))
 
-        if role == Qt.ItemDataRole.DecorationRole and index.column() == 1:
-            if node.folder_name_matches(self.string_from_file):
-                icon = (QIcon(os.path.join(self.icon_path, "ico_studying.png")))
-                return icon
+        if role == Qt.ItemDataRole.DecorationRole and index.column() == 0:
             if os.path.isdir(node.path) and node.all_files_played():
-                icon = (QIcon(os.path.join(self.icon_path, "trophy.png")))
+                icon = QIcon(os.path.join(self.icon_path, "trophy.png"))
+                return icon
+            if node.folder_name_matches(self.string_from_file):
+                icon = QIcon(os.path.join(self.icon_path, "ico_studying.png"))
                 return icon
 
         return None
-
-    def get_video_duration(self, file_path):
-        if file_path in self.duration_cache:
-            return self.duration_cache[file_path]
-
-        try:
-            clip = VideoFileClip(file_path)
-            duration = clip.duration
-            clip.close()
-            duration_str = str(datetime.timedelta(seconds=int(duration)))
-            self.duration_cache[file_path] = duration_str
-            return duration_str
-        except Exception:
-            return ""
 
     def index(self, row, column, parent=QModelIndex()):
         if not self.hasIndex(row, column, parent):
@@ -168,7 +145,7 @@ class VideoTreeModel(QAbstractItemModel):
                 item_path = os.path.join(path, item)
                 if os.path.isfile(item_path) and self.is_video_file(item_path):
                     child_node = TreeNode(parent=parent_node, name=item, path=item_path)
-                    child_node.played = self.main_db.read_played_status(item_path)
+                    child_node.played = self.db_worker.read_played_status(item_path)
                     parent_node.add_child(child_node)
                     has_video_files = True
                 elif os.path.isdir(item_path):
@@ -186,17 +163,17 @@ class VideoTreeModel(QAbstractItemModel):
         return default_flags | Qt.ItemFlag.ItemIsEnabled
 
     def save_video_info(self, current_video_path, current_video_position, current_video_played, current_video_timer):
-        self.main_db.save_video_info(current_video_path, current_video_position, current_video_played,
-                                     current_video_timer)
-
-    def close_database(self):
-        self.main_db.close_database()
+        self.db_worker.save_video_info(current_video_path, current_video_position, current_video_played,
+                                       current_video_timer)
 
     def load_video_position(self, current_video_path):
-        return self.main_db.load_video_position(current_video_path)
+        return self.db_worker.load_video_position(current_video_path)
 
     def load_video_played(self, current_video_path):
-        return self.main_db.load_video_played(current_video_path)
+        return self.db_worker.load_video_played(current_video_path)
 
     def load_video_timer(self, current_video_path):
-        return self.main_db.load_video_timer(current_video_path)
+        return self.db_worker.load_video_timer(current_video_path)
+
+    def close_database(self):
+        self.db_worker.close_database()

@@ -222,3 +222,27 @@ QListWidget::item:selected {
     background-color: #000000;
     color: #ffffff;
 }
+
+
+QComboBox
+{
+  background: #eae3d0;
+    color: #000000;
+
+
+}
+
+QComboBox::active {
+  background: #eae3d0;
+    color: #000000;
+}
+QComboBox::inactive {
+  background: #eae3d0;
+    color: #000000;
+}
+
+
+QComboBox::selected {
+  background: #eae3d0;
+  color: #000000;
+}

@@ -243,3 +243,26 @@ QListWidget::item:selected {
     background-color: #FFFFFF;
     color: #000000;
 }
+
+
+
+
+QComboBox
+{
+    background-color: #59564e;
+    color: #ffffff;
+}
+
+QComboBox::active {
+  background: #59564e;
+    color: #ffffff;
+}
+
+QComboBox::inactive {
+  background: #59564e;
+    color: #ffffff;
+}
+QComboBox::selected {
+  background: #59564e;
+    color: #ffffff;
+}
