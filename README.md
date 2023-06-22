@@ -1,5 +1,7 @@
 # Skillandria
 
+<center><img alt="Alt text" height="100" src="icon.png" title="Skillandria icon" width="100"/></center>
+
 Skillandria is a small desktop application to manage and play offline video tutorials and courses. 
 It's not aiming to be rich on features but to allow a clean environment to focus on learning while tracking the progress. 
 
@@ -18,7 +20,7 @@ It's witten in Python 3 and QT.
  - Speeding up / down controls
 
 ## Usage
- - Root folder containing the courses and language for subtitle translation must be specified by the user on the first run 
+ - Root folder containing the courses must be specified by the user on the first run clicking on the folder icon 
  - The application will look for lectures, sorting them in a tree view
  - Navigation is done by single clicking, lectures are played using the play button only
  - Timer tracks how much the user spent on every lecture (even paused, this is an intended behaviour)
