@@ -31,6 +31,8 @@ QTextEdit {
     color: #000000;
     font-weight: bold;
 	border: 1px solid #AAAAAA;
+	text-align: center;
+
 
 }
 

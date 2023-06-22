@@ -29,6 +29,7 @@ QTextEdit {
     background-color: #59564e;
     color: #FFFFFF;
     font-weight: bold;
+    text-align: center;
 
 }
 

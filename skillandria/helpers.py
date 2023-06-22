@@ -30,6 +30,16 @@ def get_icon_path(theme):
     return icon_path
 
 
+def get_default_path():
+    base_path = os.path.abspath(os.path.dirname(__file__))
+
+    if getattr(sys, 'frozen', False):
+        def_path = os.path.join(os.path.dirname(base_path))
+    else:
+        def_path = os.path.join(os.path.dirname(os.path.abspath(__file__)))
+    return def_path
+
+
 def get_theme_path(theme):
     # Get the base path of the bundled executable
     base_path = os.path.abspath(os.path.dirname(__file__))

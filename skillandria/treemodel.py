@@ -3,7 +3,7 @@ import re
 from PyQt6.QtCore import QAbstractItemModel, QModelIndex, Qt
 from PyQt6.QtGui import QFont, QIcon, QBrush, QColor
 
-from main_db import *
+from skillandria.main_db import *
 from skillandria.treenode import *
 from skillandria.helpers import *
 
@@ -17,7 +17,13 @@ class VideoTreeModel(QAbstractItemModel):
         self.icon_path = icon_path
         self.theme = theme
         self.string_from_file = string_from_file
+        self.root_node = None
+        self.setRootPath(folder_path)
+
+    def setRootPath(self, folder_path):
+        self.beginResetModel()
         self.root_node = self.create_tree(folder_path)
+        self.endResetModel()
 
     @staticmethod
     def human_sort_key(name):
@@ -87,20 +93,21 @@ class VideoTreeModel(QAbstractItemModel):
                     return Qt.CheckState.PartiallyChecked
 
         if role == Qt.ItemDataRole.BackgroundRole:
-            if node.folder_name_matches(self.string_from_file):
-                if self.theme == "light":
-                    return QBrush(QColor(234, 227, 208))
-                else:
-                    return QBrush(QColor(89, 86, 78))
+            if self.string_from_file is not None:
+                if node.folder_name_matches(self.string_from_file):
+                    if self.theme == "light":
+                        return QBrush(QColor(234, 227, 208))
+                    else:
+                        return QBrush(QColor(89, 86, 78))
 
         if role == Qt.ItemDataRole.DecorationRole and index.column() == 0:
             if os.path.isdir(node.path) and node.all_files_played():
                 icon = QIcon(os.path.join(self.icon_path, "trophy.png"))
                 return icon
-            if node.folder_name_matches(self.string_from_file):
-                icon = QIcon(os.path.join(self.icon_path, "ico_studying.png"))
-                return icon
-
+            if self.string_from_file is not None:
+                if node.folder_name_matches(self.string_from_file):
+                    icon = QIcon(os.path.join(self.icon_path, "ico_studying.png"))
+                    return icon
         return None
 
     def index(self, row, column, parent=QModelIndex()):
