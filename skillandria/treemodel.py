@@ -18,9 +18,9 @@ class VideoTreeModel(QAbstractItemModel):
         self.theme = theme
         self.string_from_file = string_from_file
         self.root_node = None
-        self.setRootPath(folder_path)
+        self.set_root(folder_path)
 
-    def setRootPath(self, folder_path):
+    def set_root(self, folder_path):
         self.beginResetModel()
         self.root_node = self.create_tree(folder_path)
         self.endResetModel()

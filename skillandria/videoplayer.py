@@ -5,13 +5,11 @@ from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter, \
     QPushButton, QSlider, QTextEdit, QLabel, QGridLayout, QFrame, QMessageBox, \
     QHeaderView, QSpacerItem, QSizePolicy, QTreeView, QInputDialog, QListWidget, QListWidgetItem, QComboBox, QFileDialog
-from googletrans import Translator
 
-from pathlib import Path
+from googletrans import Translator
 
 from skillandria.bookmarks_db import BookmarksDatabase
 from skillandria.helpers import *
-from skillandria.settings import SettingsDialog
 from skillandria.time_conversion import *
 from skillandria.treemodel import VideoTreeModel
 
@@ -434,9 +432,9 @@ class VideoPlayer(QMainWindow):
                 self.subtitle_textedit.show()
                 self.translation_section.show()
 
-    def language_changed(self, language):
+    def language_changed(self):
         language = self.subtitle_languages[self.subtitle_language_combo.currentIndex()]
-        self.translation_language = language  # Update the translation language
+        self.translation_language = language
 
     def translate_subtitle(self):
         if self.subtitle_textedit.isVisible():
@@ -582,6 +580,8 @@ class VideoPlayer(QMainWindow):
                 node = first_column_index.internalPointer()
 
             if node.path == self.current_video_path or os.path.isdir(node.path):
+                self.player.setAudioOutput(self.audioOutput)
+                self.player.setPosition(self.current_video_position)
                 self.player.play()
                 self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_pause.png")))
             else:
@@ -623,11 +623,6 @@ class VideoPlayer(QMainWindow):
 
     def set_double_speed(self):
         self.player.setPlaybackRate(1.5)
-
-    def open_settings(self):
-        dialog = SettingsDialog()
-        dialog.languageChanged.connect(self.language_changed)
-        dialog.exec()
 
     def update_duration(self, duration):
         self.timeline_slider.setRange(0, duration)
@@ -698,7 +693,6 @@ class VideoPlayer(QMainWindow):
             self.settings.setValue("VideoPath", self.folder_path)
 
     def load_settings_in_ui(self):
-        video_path = self.settings.value("VideoPath")
         subtitle_language = self.settings.value("SubtitleLanguage")
         self.subtitle_language_combo.setCurrentText(subtitle_language)
 
@@ -711,6 +705,7 @@ class VideoPlayer(QMainWindow):
         if self.theme == "dark":
             self.settings.setValue("DarkThemeEnabled", False)
             self.theme = "light"
+            self.model.theme = "light"
             self.setStyleSheet(load_stylesheet(get_theme_path("light")))
             self.timer_label.setStyleSheet("background-color: #eae3d0")
 
@@ -719,6 +714,7 @@ class VideoPlayer(QMainWindow):
         elif self.theme == "light":
             self.settings.setValue("DarkThemeEnabled", True)
             self.theme = "dark"
+            self.model.theme = "dark"
             self.setStyleSheet(load_stylesheet(get_theme_path("dark")))
             self.timer_label.setStyleSheet("background-color: #59564e")
 
