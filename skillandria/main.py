@@ -1,10 +1,11 @@
 import sys
 
 from PyQt6.QtWidgets import QApplication
-from skillandria.videoplayer import VideoPlayer
 
+from skillandria.courses import CourseWindow
 
 class Main:
     app = QApplication(sys.argv)
-    player = VideoPlayer()
+    main_window = CourseWindow()
+    main_window.show()
     sys.exit(app.exec())

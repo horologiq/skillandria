@@ -20,13 +20,20 @@ def get_db_path():
     return path
 
 
-def get_icon_path(theme):
+def get_courses_db_path():
+    data_dir = appdirs.user_data_dir(appname='skillandria')
+    os.makedirs(data_dir, exist_ok=True)
+    path = os.path.join(data_dir, 'courses.db')
+    return path
+
+
+def get_icon_path():
     base_path = os.path.abspath(os.path.dirname(__file__))
 
     if getattr(sys, 'frozen', False):
-        icon_path = os.path.join(os.path.dirname(base_path), 'themes', theme)
+        icon_path = os.path.join(os.path.dirname(base_path), 'icons')
     else:
-        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'themes', theme)
+        icon_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'icons')
     return icon_path
 
 
@@ -71,3 +78,17 @@ def load_stylesheet(theme_str):
 
     else:
         return ""
+
+def format_duration(seconds):
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    seconds = seconds % 60
+    return f"{int(hours)}:{int(minutes):02}:{int(seconds):02}"
+
+
+def format_timestamp(position):
+    seconds = position // 1000
+    hours = seconds // 3600
+    minutes = (seconds % 3600) // 60
+    seconds = seconds % 60
+    return f"{hours:02}:{minutes:02}:{seconds:02}"

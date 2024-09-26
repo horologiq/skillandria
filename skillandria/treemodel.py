@@ -9,13 +9,12 @@ from skillandria.helpers import *
 
 
 class VideoTreeModel(QAbstractItemModel):
-    def __init__(self, folder_path, string_from_file, icon_path, theme):
+    def __init__(self, folder_path, string_from_file, icon_path):
         super().__init__()
 
         self.db_worker = MainDatabase()
 
         self.icon_path = icon_path
-        self.theme = theme
         self.string_from_file = string_from_file
         self.root_node = None
         self.set_root(folder_path)
@@ -95,10 +94,8 @@ class VideoTreeModel(QAbstractItemModel):
         if role == Qt.ItemDataRole.BackgroundRole:
             if self.string_from_file is not None:
                 if node.folder_name_matches(self.string_from_file):
-                    if self.theme == "light":
-                        return QBrush(QColor(234, 227, 208))
-                    else:
-                        return QBrush(QColor(89, 86, 78))
+                    return QBrush(QColor(234, 227, 208))
+
 
         if role == Qt.ItemDataRole.DecorationRole and index.column() == 0:
             if os.path.isdir(node.path) and node.all_files_played():
