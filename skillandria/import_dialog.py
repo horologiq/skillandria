@@ -56,12 +56,11 @@ class ImportDialog(QDialog):
         super().__init__(parent)
         self.setWindowTitle("Import course")
         self.layout = QVBoxLayout()
+        self.resize(600, 250)
 
-        # Crear el Tab Widget
         self.tab_widget = QTabWidget()
         self.layout.addWidget(self.tab_widget)
 
-        # Crear las pestañas
         self.create_import_from_disk_tab()
         self.create_import_from_youtube_tab()
 

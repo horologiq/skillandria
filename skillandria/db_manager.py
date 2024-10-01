@@ -18,8 +18,8 @@ class DBManager:
             author TEXT NOT NULL,
             duration INTEGER NOT NULL,
             progress INTEGER DEFAULT 0,
-            tags TEXT,  -- Nuevas etiquetas
-            dir TEXT,  -- Nueva columna añadida
+            tags TEXT,  
+            dir TEXT,  
             last_accessed TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
         '''
@@ -27,7 +27,6 @@ class DBManager:
         self.conn.commit()
 
     def add_course(self, title, author, duration, path, tags):
-        # Guardar en la base de datos
         query = """INSERT INTO courses (title, author, duration, tags, dir)
                    VALUES (?, ?, ?, ?, ?)"""
         self.cursor.execute(query, (title, author, duration, tags, os.path.dirname(path)))
@@ -65,8 +64,7 @@ class DBManager:
 
     def delete_course(self, course_id):
         try:
-            self.cursor.execute("DELETE FROM courses WHERE last_accessed = ?", (course_id,))  # Cambiado a "courses"
+            self.cursor.execute("DELETE FROM courses WHERE last_accessed = ?", (course_id,))
             self.conn.commit()
-            print(course_id)
         except sqlite3.Error as e:
-            print(f"Error al eliminar el curso: {e}")
+            print(f"Fail deleting course: {e}")

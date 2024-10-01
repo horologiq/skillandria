@@ -146,7 +146,7 @@ class CourseWindow(QMainWindow):
             frame_layout.addWidget(title_label)
 
             formatted_duration = self.format_duration(duration)
-            course_label = QLabel(f"{author}\nDuración: {formatted_duration}\nProgreso: {progress}%")
+            course_label = QLabel(f"{author}\nDuration: {formatted_duration}\nProgress: {progress}%")
             course_label.setStyleSheet("background-color: lightgray; padding: 5px; border-radius: 5px;")
             course_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
             course_label.setWordWrap(True)
