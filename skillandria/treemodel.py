@@ -24,6 +24,7 @@ class VideoTreeModel(QAbstractItemModel):
         self.root_node = self.create_tree(folder_path)
         self.endResetModel()
 
+
     @staticmethod
     def human_sort_key(name):
         parts = re.split(r'(\d+)', name)

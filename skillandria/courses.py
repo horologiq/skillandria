@@ -4,7 +4,7 @@ from PyQt6.QtWidgets import (
     QLabel, QComboBox, QFrame, QMessageBox, QScrollArea,
 )
 from PyQt6.QtGui import QPixmap, QIcon
-from PyQt6.QtCore import Qt
+from PyQt6.QtCore import Qt, QSize
 from functools import partial
 
 from skillandria.db_manager import *
@@ -131,7 +131,6 @@ class CourseWindow(QMainWindow):
 
             course_frame.setStyleSheet(f"""
                 QFrame {{
-                    border: 2px solid rgb(100, 100, 100);  
                     border-radius: 20px;       
                     padding: 10px;             
                     background-color: rgb(180, 180, 180);    
@@ -154,10 +153,13 @@ class CourseWindow(QMainWindow):
 
             thumbnail_label = QLabel()
             thumbnail_label.setFixedSize(350, 200)
+            thumbnail_label.setStyleSheet("background-color: lightgray; padding: 0px; border-radius: 0px;")
+
             if dir and os.path.exists(os.path.join(dir, 'thumbnail.jpg')):
                 pixmap = QPixmap(os.path.join(dir, 'thumbnail.jpg')).scaled(400, 200,
                                                                             Qt.AspectRatioMode.KeepAspectRatio)
                 thumbnail_label.setPixmap(pixmap)
+
             else:
                 thumbnail_label.setText("No Thumbnail")
                 thumbnail_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
@@ -168,11 +170,13 @@ class CourseWindow(QMainWindow):
 
             delete_button = QPushButton()
             delete_button.setIcon(QIcon(os.path.join(get_icon_path(), "ico_remove.png")))
+            delete_button.setIconSize(QSize(30, 30))
             delete_button.clicked.connect(partial(self.delete_course, course_id))
             button_layout.addWidget(delete_button)
 
             start_button = QPushButton()
             start_button.setIcon(QIcon(os.path.join(get_icon_path(), "ico_play.png")))
+            start_button.setIconSize(QSize(30, 30))
             start_button.clicked.connect(partial(self.open_course_details, course))
             button_layout.addWidget(start_button)
 
@@ -191,7 +195,7 @@ class CourseWindow(QMainWindow):
         dialog.exec()
 
     def open_course_details(self, course):
-        self.player = VideoPlayer(course[6])
+        self.player = VideoPlayer(course)
         self.player.show()
 
     def delete_course(self, course_id):

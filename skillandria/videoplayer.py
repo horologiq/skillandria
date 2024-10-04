@@ -16,7 +16,7 @@ from skillandria.treemodel import VideoTreeModel
 class VideoPlayer(QMainWindow):
     languageChanged = pyqtSignal(str)
 
-    def __init__(self, path, parent=None):
+    def __init__(self, course, parent=None):
         super().__init__(parent)
 
 
@@ -26,7 +26,8 @@ class VideoPlayer(QMainWindow):
         self.string_from_file = None
         self.subtitle_list = None
         self.settings = QSettings("skillandria")
-        self.setWindowTitle(os.path.basename(path))
+        self.course_name = course[1]
+        self.setWindowTitle(os.path.basename(course[6]))
         self.resize(800, 600)
         self.start_time = 0
         self.end_time = 0
@@ -34,7 +35,7 @@ class VideoPlayer(QMainWindow):
         self.current_bookmark_position = None
         self.icon_path = get_icon_path()
         self.translation_language = load_translation_language()
-        self.folder_path = path
+        self.folder_path = course[6]
         self.subtitle_connected = False
         self.current_video_path = ""
         self.current_video_position = 0
@@ -68,7 +69,6 @@ class VideoPlayer(QMainWindow):
 
         self.progress_label.setFrameShape(QFrame.Shape.StyledPanel)
         self.timer_label.setFrameShape(QFrame.Shape.StyledPanel)
-        self.filename_label.setFrameShape(QFrame.Shape.HLine)
         self.filename_label.setStyleSheet("font-weight: bold;")
 
         self.info_section_layout.setSpacing(5)
@@ -107,16 +107,16 @@ class VideoPlayer(QMainWindow):
 
         # Lower left: Play button, timeline, bookmark stamps, subtitle
 
-        self.play_button = QPushButton("", self)
+        self.play_button = QPushButton()
         self.play_button.clicked.connect(self.toggle_playback)
         self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_play.png")))
-        self.play_button.setIconSize(QSize(100, 100))
+        self.play_button.setIconSize(QSize(65, 65))
         self.play_button.setStyleSheet("border: none; background: transparent;")
         self.play_button.setEnabled(False)
 
         self.timeline_area = QWidget(self)
         self.timeline_area_layout = QHBoxLayout(self.timeline_area)
-        self.timeline_area.setFixedHeight(80)
+        self.timeline_area.setFixedHeight(75)
 
         self.timeline_slider = QSlider(Qt.Orientation.Horizontal, self)
         self.timeline_slider.setRange(0, 0)
@@ -140,27 +140,38 @@ class VideoPlayer(QMainWindow):
         self.hide_button = QPushButton()
         self.hide_button.clicked.connect(self.toggle_subtitle_area)
         self.hide_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_sub.png")))
+        self.hide_button.setIconSize(QSize(30, 30))
+
         self.button_layout.addWidget(self.hide_button)
 
         self.full_screen_button = QPushButton()
         self.full_screen_button.clicked.connect(self.toggle_full_screen)
         self.full_screen_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_screen.png")))
+        self.full_screen_button.setIconSize(QSize(30, 30))
+
         self.button_layout.addWidget(self.full_screen_button)
 
 
-        self.pip_button = QPushButton("PIP", self)
+        self.pip_button = QPushButton()
+        self.pip_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_pip.png")))
         self.pip_button.clicked.connect(self.toggle_pip_mode)
+        self.pip_button.setIconSize(QSize(30, 30))
+
         self.button_layout.addWidget(self.pip_button)
 
-        self.subtitle_speed_combo = QComboBox()
-        self.subtitle_speed_combo.currentIndexChanged.connect(self.speed_changed)
-        self.speeds = [
-            "0.5", "1", "1.5", "2"
-        ]
+        self.speed_combo = QComboBox()
+        self.speed_combo.currentIndexChanged.connect(self.speed_changed)
 
-        self.subtitle_speed_combo.addItems(self.speeds)
-        self.subtitle_speed_combo.setCurrentIndex(1)
-        self.button_layout.addWidget(self.subtitle_speed_combo)
+        self.speed_combo.addItem(QIcon(os.path.join(self.icon_path, "speed_0_5x.png")), "")
+        self.speed_combo.addItem(QIcon(os.path.join(self.icon_path, "speed_1x.png")), "")
+        self.speed_combo.addItem(QIcon(os.path.join(self.icon_path, "speed_1_5x.png")), "")
+        self.speed_combo.addItem(QIcon(os.path.join(self.icon_path, "speed_2x.png")), "")
+
+        self.speed_combo.setIconSize(QSize(30, 30))
+
+
+        self.speed_combo.setCurrentIndex(1)
+        self.button_layout.addWidget(self.speed_combo)
 
         self.timeline_area_layout.addLayout(self.button_layout)
 
@@ -228,7 +239,8 @@ class VideoPlayer(QMainWindow):
         self.model = VideoTreeModel(self.folder_path, self.string_from_file, self.icon_path)
 
         self.tree_view.setModel(self.model)
-        self.tree_view.clicked.connect(self.select_item)
+        self.expand_all_nodes()
+        self.tree_view.doubleClicked.connect(self.handle_double_click)
         self.tree_view.setExpandsOnDoubleClick(False)
         self.tree_view.setAnimated(False)
         self.tree_view.setIndentation(15)
@@ -248,6 +260,9 @@ class VideoPlayer(QMainWindow):
         self.bookmark_button = QPushButton()
         self.bookmark_button.clicked.connect(self.create_bookmark)
         self.bookmark_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_fav.png")))
+        self.bookmark_button.setIconSize(QSize(30, 30))
+
+
         self.fav_button_layout.addWidget(self.bookmark_button)
 
         self.icon_dropdown = QComboBox(self)
@@ -257,11 +272,14 @@ class VideoPlayer(QMainWindow):
         self.icon_dropdown.addItem(QIcon(os.path.join(self.icon_path, "fav_3.png")), "")
         self.icon_dropdown.addItem(QIcon(os.path.join(self.icon_path, "fav_4.png")), "")
 
+        self.icon_dropdown.setIconSize(QSize(30, 30))
+
         self.fav_button_layout.addWidget(self.icon_dropdown)
 
         self.remove_bookmark_button = QPushButton()
         self.remove_bookmark_button.clicked.connect(self.remove_bookmark)
         self.remove_bookmark_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_remove.png")))
+        self.remove_bookmark_button.setIconSize(QSize(30, 30))
         self.fav_button_layout.addWidget(self.remove_bookmark_button)
         self.bookmark_timestamp_label = QLabel("", self)
         self.bookmark_timestamp_label.setStyleSheet("font-weight: bold;")
@@ -339,7 +357,7 @@ class VideoPlayer(QMainWindow):
 
             bookmark_button = QPushButton(self)
             bookmark_button.setIcon(QIcon(os.path.join(self.icon_path, "fav_" + str(icon_index + 1) + ".png")))
-            bookmark_button.setIconSize(QSize(20, 20))
+            bookmark_button.setIconSize(QSize(15, 15))
             bookmark_button.setStyleSheet("border: none; background: transparent;")
 
             bookmark_button.setParent(self.timeline_bookmarks_area)
@@ -419,7 +437,7 @@ class VideoPlayer(QMainWindow):
         cropped_filename = filename[:35] + "..." if len(filename) > 600 else filename
         cropped_foldername = foldername[:35] + "..." if len(foldername) > 600 else foldername
 
-        self.filename_label.setText(cropped_foldername + "\n" + cropped_filename)
+        self.filename_label.setText(os.path.basename(self.course_name) + "   >   " + cropped_foldername + "   >   " + cropped_filename)
 
     def update_timer(self):
         if self.timer_running:
@@ -455,7 +473,17 @@ class VideoPlayer(QMainWindow):
 
 
     def speed_changed(self):
-        self.player.setPlaybackRate(float(self.subtitle_speed_combo.currentText()))
+        match self.speed_combo.currentIndex():
+            case 0:
+                self.player.setPlaybackRate(0.5)
+            case 1:
+                self.player.setPlaybackRate(1)
+            case 2:
+                self.player.setPlaybackRate(1.5)
+            case 3:
+                self.player.setPlaybackRate(2)
+            case _:
+                 self.player.setPlaybackRate(1)
 
 
     def translate_subtitle(self):
@@ -475,25 +503,33 @@ class VideoPlayer(QMainWindow):
     def update_translation(self, translation):
         self.translation_textedit.setPlainText(translation)
 
-    def select_item(self):
-        index = self.tree_view.currentIndex()
+
+
+    def find_last_played_in_directory(self, directory_node):
+        last_played_node = None
+        for child in directory_node.children:
+            if os.path.isfile(child.path) and child.played:
+                last_played_node = child
+        if last_played_node:
+            return self.model.createIndex(last_played_node.row(), 0, last_played_node)
+        return None
+
+
+    def handle_double_click(self, index):
         node = index.internalPointer()
         if node.is_folder:
-            if self.tree_view.isExpanded(index):
-                self.tree_view.collapse(index)
-            else:
-                self.tree_view.expand(index)
-        else:
-            self.play_button.setEnabled(True)
+            self.tree_view.expand(index)
+        elif os.path.isfile(node.path):
+            self.stop_video()
+            self.toggle_playback()
+
 
     def play_video(self, index):
         if index.isValid() and index.column() == 0:
             node = index.internalPointer()
 
             if os.path.isfile(node.path):
-
                 if self.current_video_path != node.path:
-
                     path = self.current_video_path
                     pos = self.current_video_position
                     played = self.current_video_played
@@ -509,8 +545,6 @@ class VideoPlayer(QMainWindow):
                     self.current_video_played = False
                     self.current_video_path = node.path
 
-                    self.model.string_from_file = node.path
-
                     try:
                         self.player.setSource(QUrl.fromLocalFile(self.current_video_path))
                     except Exception as e:
@@ -520,11 +554,9 @@ class VideoPlayer(QMainWindow):
                     self.current_video_played = self.model.load_video_played(self.current_video_path)
                     self.current_video_timer = self.model.load_video_timer(self.current_video_path)
 
-                    self.timeline_slider.setRange(0, self.player.duration())
-                    self.subtitle_textedit.clear()
-                    self.translation_textedit.clear()
+                    self.player.mediaStatusChanged.connect(self.on_media_ready)
 
-                    self.player.setPosition(self.current_video_position)
+                    self.timeline_slider.setRange(0, self.player.duration())
 
                     subtitle_path = os.path.splitext(node.path)[0] + ".srt"
                     if os.path.isfile(subtitle_path):
@@ -544,6 +576,14 @@ class VideoPlayer(QMainWindow):
 
                 self.update_video_info()
 
+    def on_media_ready(self, status):
+        if status == QMediaPlayer.MediaStatus.LoadedMedia:
+            self.player.mediaStatusChanged.disconnect(self.on_media_ready)
+
+            if self.current_video_position > 0:
+                self.player.setPosition(self.current_video_position)
+
+            self.player.play()
 
     def parse_subtitles(self, subtitles):
         subtitle_lines = subtitles.split("\n\n")
@@ -572,8 +612,13 @@ class VideoPlayer(QMainWindow):
             if current_subtitle != "":
                 self.subtitle_textedit.clear()
 
+
     def toggle_playback(self):
         if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
+            self.current_video_position = self.player.position()
+            self.model.save_video_info(self.current_video_path, self.current_video_position, self.current_video_played,
+                                       self.current_video_timer)
+
             self.player.pause()
             self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_play.png")))
         else:
@@ -596,6 +641,7 @@ class VideoPlayer(QMainWindow):
                 self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_pause.png")))
                 self.settings.setValue("LastVideo", self.current_video_path)
 
+
     def stop_video(self):
         self.player.stop()
         self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_play.png")))
@@ -603,6 +649,7 @@ class VideoPlayer(QMainWindow):
         self.save_settings()
 
     def toggle_full_screen(self):
+        self.is_pip_mode = False
         if not self.is_fullscreen:
             self.showFullScreen()
             self.right_section.hide()
@@ -617,6 +664,7 @@ class VideoPlayer(QMainWindow):
         self.left_section.updateGeometry()
 
     def toggle_pip_mode(self):
+        self.is_fullscreen = False
         if not self.is_pip_mode:
             self.right_section.hide()
             self.info_section.hide()
@@ -669,7 +717,12 @@ class VideoPlayer(QMainWindow):
             if os.path.isfile(node.path):
                 node.played = True
                 self.tree_view.update(index)
+
+                self.current_video_position = 0
                 self.current_video_played = True
+                self.model.save_video_info(self.current_video_path, self.current_video_position,
+                                           self.current_video_played, self.current_video_timer)
+
                 self.stop_video()
                 self.player.setPosition(0)
 
@@ -728,3 +781,20 @@ class VideoPlayer(QMainWindow):
     def save_settings(self):
         subtitle_language = self.subtitle_language_combo.currentText()
         self.settings.setValue("SubtitleLanguage", subtitle_language)
+
+
+    def expand_all_nodes(self):
+        def expand_recursively(index):
+            if not index.isValid():
+                return
+            node = index.internalPointer()
+            if node.is_folder:
+                self.tree_view.expand(index)
+                for i in range(self.model.rowCount(index)):
+                    child_index = self.model.index(i, 0, index)
+                    expand_recursively(child_index)
+
+        root_index = QModelIndex()
+        for i in range(self.model.rowCount(root_index)):
+            index = self.model.index(i, 0, root_index)
+            expand_recursively(index)
