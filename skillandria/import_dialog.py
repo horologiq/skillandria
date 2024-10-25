@@ -3,10 +3,11 @@ import cv2
 import random
 import re
 import yt_dlp
+import shutil
+
 from PyQt6.QtWidgets import (
     QDialog, QVBoxLayout, QTabWidget, QWidget, QLineEdit, QPushButton, QFileDialog, QProgressBar
 )
-
 
 
 def get_video_duration(video_path):
@@ -40,7 +41,6 @@ def import_course(directory):
                 videos.append(video_path)
                 total_duration += get_video_duration(video_path)
 
-    # Generar thumbnail usando el primer video encontrado
     if videos:
         thumbnail_path = os.path.join(directory, 'thumbnail.jpg')
         generate_thumbnail(videos[0], thumbnail_path)
@@ -161,7 +161,6 @@ class ImportDialog(QDialog):
 
         if self.directory:
             duration, thumbnail = import_course(self.directory)
-            print(thumbnail)
             self.parent().db.add_course(title, author, duration, thumbnail, tags)
             self.parent().load_filtered_courses(max_columns=3)
             self.parent().load_tags()
@@ -183,22 +182,31 @@ class ImportDialog(QDialog):
 
     def download_video(self, url, tags):
         try:
-            with yt_dlp.YoutubeDL() as ydl:
+            self.download_button.setText("Processing...")
+            self.download_button.setEnabled(False)
+
+            with yt_dlp.YoutubeDL({'skip_download': True}) as ydl:
                 info_dict = ydl.extract_info(url, download=False)
-                title = info_dict.get('title', None)
-                author = info_dict.get('uploader', None)
-                duration = info_dict.get('duration', None)
+                title = info_dict.get('title', 'Unknown Title')
+                author = info_dict.get('uploader', 'Unknown Author')
+                duration = info_dict.get('duration', 0)
                 thumbnail_url = info_dict.get('thumbnail', None)
+                chapters = info_dict.get("chapters", None)
+                ext = info_dict.get('ext', 'mp4')  # Obtener extensión real
 
             folder_name = f"[{tags}] [{author}] {title}"
             folder_path = os.path.join(self.directory_youtube, folder_name)
             os.makedirs(folder_path, exist_ok=True)
 
+            video_output_path = os.path.join(folder_path, f"{title}.{ext}")
+
             ydl_opts = {
-                'format': 'best',
+                'format': 'bestvideo+bestaudio/best',
+                'outtmpl': video_output_path,
+                'writesubtitles': True,  # Descargar subtítulos
+                'subtitleslangs': ['en'],  # Cambia a tu preferencia, 'en' es para inglés
                 'progress_hooks': [self.download_progress_hook],
-                'outtmpl': os.path.join(folder_path, '%(title)s.%(ext)s'),
-                'noplaylist': True
+                'postprocessors': [{'key': 'FFmpegSplitChapters'}] if chapters else [],
             }
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -207,32 +215,48 @@ class ImportDialog(QDialog):
             if thumbnail_url:
                 self.download_thumbnail(thumbnail_url, folder_path)
 
-            self.parent().db.add_course(title, author, duration, os.path.join(folder_path, "thumbnail.jpg"), tags)
+            if chapters:
+                self.delete_original_file(video_output_path)
+                self.move_chapter_videos(folder_path)
+                self.clean_all_filenames_in_directory(folder_path, title)
 
+            self.parent().db.add_course(title, author, duration, os.path.join(folder_path, "thumbnail.jpg"), tags)
             self.parent().load_filtered_courses(max_columns=3)
             self.accept()
 
         except Exception as e:
             print(f"Error downloading video: {e}")
 
+        finally:
+            self.download_button.setText("Download")
+            self.download_button.setEnabled(True)
+            self.accept()
+
+
     def download_playlist(self, url, tags):
         try:
-            with yt_dlp.YoutubeDL() as ydl:
+            self.download_button.setText("Processing...")
+            self.download_button.setEnabled(False)
+
+            with yt_dlp.YoutubeDL({'skip_download': True}) as ydl:
                 info_dict = ydl.extract_info(url, download=False)
-                playlist_title = info_dict.get('playlist_title', None)
-                author = info_dict.get('uploader', None)
+                playlist_title = info_dict.get('playlist_title', 'Unknown Playlist')
+                author = info_dict.get('uploader', 'Unknown Author')
                 thumbnail_url = info_dict.get('entries', [])[0].get('thumbnail', None)
-                total_duration = sum([entry['duration'] for entry in info_dict['entries']])
+                total_duration = sum(entry.get('duration', 0) for entry in info_dict.get('entries', []))
 
             folder_name = f"[{tags}] [{author}] {playlist_title}"
             folder_path = os.path.join(self.directory_youtube, folder_name)
             os.makedirs(folder_path, exist_ok=True)
 
             ydl_opts = {
-                'format': 'best',
-                'progress_hooks': [self.download_progress_hook],  # Hook para la barra de progreso
-                'outtmpl': os.path.join(folder_path, '%(playlist_index)s - %(title)s.%(ext)s'),  # Guardar videos numerados en el subdirectorio
-                'yes_playlist': True  # Descargar toda la playlist
+                'format': 'bestvideo+bestaudio/best',
+                'outtmpl': os.path.join(folder_path, '%(playlist_index)02d - %(title)s.%(ext)s'),
+                'writesubtitles': True,
+                'subtitleslangs': ['en'],
+                'progress_hooks': [self.download_progress_hook],
+                'postprocessors': [{'key': 'FFmpegSplitChapters'}],  # Divide en capítulos si existen
+                'yes_playlist': True,  # Descargar toda la playlist
             }
 
             with yt_dlp.YoutubeDL(ydl_opts) as ydl:
@@ -241,13 +265,75 @@ class ImportDialog(QDialog):
             if thumbnail_url:
                 self.download_thumbnail(thumbnail_url, folder_path)
 
-            self.parent().db.add_course(playlist_title, author, total_duration, os.path.join(folder_path, "thumbnail.jpg"), tags)
+            for entry in info_dict['entries']:
+                title = entry.get('title', 'Unknown Title')
+                video_output_path = os.path.join(folder_path, f"{title}.mp4")
+
+                if 'chapters' in entry:
+                    self.delete_original_file(video_output_path)
+                    self.move_chapter_videos(folder_path)
+                    self.clean_all_filenames_in_directory(folder_path, title)
+
+            self.parent().db.add_course(playlist_title, author, total_duration,
+                                        os.path.join(folder_path, "thumbnail.jpg"), tags)
 
             self.parent().load_filtered_courses(max_columns=3)
-            self.accept()
 
         except Exception as e:
             print(f"Error downloading playlist: {e}")
+
+        finally:
+            self.download_button.setText("Download")
+            self.download_button.setEnabled(True)
+            self.accept()
+
+    def delete_original_file(self, filepath):
+        try:
+            if os.path.exists(filepath):
+                os.remove(filepath)
+                return True
+            else:
+                return False
+        except Exception as e:
+            print(f"Error al eliminar el archivo {filepath}: {e}")
+            return False
+
+
+    def move_chapter_videos(self, folder_path):
+        video_extensions = ['.mp4', '.avi', '.mov', '.mkv', '.flv', '.wmv', '.webm']
+        for root, _, files in os.walk(os.path.abspath(os.getcwd())):
+            for file in files:
+                if any(file.endswith(ext) for ext in video_extensions):
+                    original_path = os.path.join(root, file)
+                    destination_path = os.path.join(folder_path, file)
+                    try:
+                        shutil.move(original_path, destination_path)
+                    except Exception as e:
+                        print(f"Error al mover el archivo {file}: {e}")
+
+    def clean_filename(self, filename, original_title):
+        title_pattern = re.escape(original_title)
+        new_filename = re.sub(title_pattern, '', filename)
+        new_filename = re.sub(r'\s*\[[A-Za-z0-9_-]{11}\](?=\.\w+$)', '', new_filename)
+        new_filename = re.sub(r'^\s*-\s*|\s*-\s*$', '', new_filename).strip()
+        return new_filename
+
+    def clean_all_filenames_in_directory(self, directory, original_title):
+        for filename in os.listdir(directory):
+            original_path = os.path.join(directory, filename)
+
+            if os.path.isfile(original_path):
+                new_filename = self.clean_filename(filename, original_title)
+                new_path = os.path.join(directory, new_filename)
+                os.rename(original_path, new_path)
+
+
+    def download_progress_hook(self, d):
+        if d['status'] == 'downloading':
+            downloaded_bytes = d.get('downloaded_bytes', 0)
+            total_bytes = d.get('total_bytes', 1)
+            progress_percentage = (downloaded_bytes / total_bytes) * 100
+            self.progress_bar.setValue(int(progress_percentage))  # Convertir a entero
 
     def download_thumbnail(self, thumbnail_url, folder_path):
         try:
@@ -257,9 +343,3 @@ class ImportDialog(QDialog):
         except Exception as e:
             print(f"Error downloading thumbnail: {e}")
 
-    def download_progress_hook(self, d):
-        if d['status'] == 'downloading':
-            downloaded_bytes = d.get('downloaded_bytes', 0)
-            total_bytes = d.get('total_bytes', 1)  # Prevenir división por cero
-            progress_percentage = (downloaded_bytes / total_bytes) * 100
-            self.progress_bar.setValue(int(progress_percentage))  # Convertir a entero

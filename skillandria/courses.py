@@ -26,6 +26,10 @@ class CourseWindow(QMainWindow):
 
         self.filter_layout = QHBoxLayout()
 
+        self.import_button = QPushButton("Import course")
+        self.import_button.clicked.connect(self.import_course_dialog)
+        self.filter_layout.addWidget(self.import_button, 1)
+
         self.search_bar = QLineEdit()
         self.search_bar.setPlaceholderText("Search courses or tags...")
         self.search_bar.textChanged.connect(self.search_courses)
@@ -52,9 +56,8 @@ class CourseWindow(QMainWindow):
         self.course_container = QWidget()
         self.course_grid = QGridLayout(self.course_container)
 
-        self.import_button = QPushButton("Import course")
-        self.import_button.clicked.connect(self.import_course_dialog)
-        self.course_grid.addWidget(self.import_button, 0, 0)
+
+        # self.course_grid.addWidget(self.import_button, 0, 0)
 
         self.scroll_area.setWidget(self.course_container)
         self.layout.addWidget(self.scroll_area)
@@ -109,7 +112,7 @@ class CourseWindow(QMainWindow):
             if widget:
                 widget.setParent(None)
 
-        self.course_grid.addWidget(self.import_button, 0, 0)
+        # self.course_grid.addWidget(self.import_button, 0, 0)
 
         sort_criteria = self.sort_filter.currentText()
         if sort_criteria == "Last accessed":

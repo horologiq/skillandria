@@ -168,11 +168,20 @@ class VideoTreeModel(QAbstractItemModel):
         return default_flags | Qt.ItemFlag.ItemIsEnabled
 
     def save_video_info(self, current_video_path, current_video_position, current_video_played, current_video_timer):
-        self.db_worker.save_video_info(current_video_path, current_video_position, current_video_played,
-                                       current_video_timer)
+        if current_video_path:
+            print(f"Guardando posición: {current_video_position}, jugado: {current_video_played}, timer: {current_video_timer}")
+            self.db_worker.save_video_info(current_video_path, current_video_position, current_video_played,
+                                           current_video_timer)
+        else:
+            print("No se ha guardado ninguna información del video. El path está vacío.")
 
     def load_video_position(self, current_video_path):
-        return self.db_worker.load_video_position(current_video_path)
+        if current_video_path:
+            print(f"Cargando posición: {self.db_worker.load_video_position(current_video_path)}")
+            return self.db_worker.load_video_position(current_video_path)
+        else:
+            print("No se puede cargar la posición, el path está vacío.")
+            return 0
 
     def load_video_played(self, current_video_path):
         return self.db_worker.load_video_played(current_video_path)

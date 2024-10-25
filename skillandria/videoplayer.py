@@ -4,7 +4,7 @@ from PyQt6.QtMultimedia import QMediaPlayer, QAudioOutput
 from PyQt6.QtMultimediaWidgets import QVideoWidget
 from PyQt6.QtWidgets import QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QSplitter, \
     QPushButton, QSlider, QTextEdit, QLabel, QGridLayout, QFrame, QMessageBox, \
-    QHeaderView, QSpacerItem, QSizePolicy, QTreeView, QComboBox, QFileDialog
+    QHeaderView, QSpacerItem, QSizePolicy, QTreeView, QComboBox
 
 from skillandria.bookmarks_db import BookmarksDatabase
 from skillandria.helpers import *
@@ -22,6 +22,7 @@ class VideoPlayer(QMainWindow):
 
         # Init
 
+        self.current_node = None
         self.bookmarks_db = BookmarksDatabase()
         self.string_from_file = None
         self.subtitle_list = None
@@ -112,7 +113,7 @@ class VideoPlayer(QMainWindow):
         self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_play.png")))
         self.play_button.setIconSize(QSize(65, 65))
         self.play_button.setStyleSheet("border: none; background: transparent;")
-        self.play_button.setEnabled(False)
+        self.play_button.setEnabled(True)
 
         self.timeline_area = QWidget(self)
         self.timeline_area_layout = QHBoxLayout(self.timeline_area)
@@ -308,7 +309,9 @@ class VideoPlayer(QMainWindow):
         self.left_section_size = self.left_section.sizeHint().width()
         self.right_section_size = self.right_section.sizeHint().width()
 
-        self.load_settings_in_ui()
+        subtitle_language = self.settings.value("SubtitleLanguage")
+        self.subtitle_language_combo.setCurrentText(subtitle_language)
+
         self.select_last_played_video()
         self.show()
 
@@ -426,7 +429,6 @@ class VideoPlayer(QMainWindow):
                     parent_index = index.parent()
                     if parent_index.isValid():
                         self.tree_view.expand(parent_index)
-                    self.select_item()
                     break
 
     def update_video_info(self):
@@ -503,85 +505,81 @@ class VideoPlayer(QMainWindow):
     def update_translation(self, translation):
         self.translation_textedit.setPlainText(translation)
 
-
-
-    def find_last_played_in_directory(self, directory_node):
-        last_played_node = None
-        for child in directory_node.children:
-            if os.path.isfile(child.path) and child.played:
-                last_played_node = child
-        if last_played_node:
-            return self.model.createIndex(last_played_node.row(), 0, last_played_node)
-        return None
-
-
     def handle_double_click(self, index):
-        node = index.internalPointer()
-        if node.is_folder:
-            self.tree_view.expand(index)
-        elif os.path.isfile(node.path):
-            self.stop_video()
-            self.toggle_playback()
-
-
-    def play_video(self, index):
         if index.isValid() and index.column() == 0:
-            node = index.internalPointer()
+            self.current_node = index.internalPointer()
 
-            if os.path.isfile(node.path):
-                if self.current_video_path != node.path:
-                    path = self.current_video_path
-                    pos = self.current_video_position
-                    played = self.current_video_played
-                    timer = self.current_video_timer
+            if os.path.isfile(self.current_node.path):
+                self.save_settings()
 
-                    if self.current_video_path is not None:
-                        self.player.stop()
+                self.stop_video()
 
-                    self.model.save_video_info(path, pos, played, timer)
+                self.play_video()
 
-                    self.current_video_timer = 0
-                    self.current_video_position = 0
-                    self.current_video_played = False
-                    self.current_video_path = node.path
+    def toggle_playback(self):
+        if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
+            self.player.pause()
+            self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_play.png")))
+        else:
+            self.player.play()
+            self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_pause.png")))
 
-                    try:
-                        self.player.setSource(QUrl.fromLocalFile(self.current_video_path))
-                    except Exception as e:
-                        print(f"Error setting source: {e}")
+    def stop_video(self):
+        self.save_settings()
+        self.player.stop()
+        self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_play.png")))
+        self.stop_timer()
 
-                    self.current_video_position = self.model.load_video_position(self.current_video_path)
-                    self.current_video_played = self.model.load_video_played(self.current_video_path)
-                    self.current_video_timer = self.model.load_video_timer(self.current_video_path)
+    def play_video(self):
+        if self.current_video_path != self.current_node.path:
+            self.current_video_path = self.current_node.path
 
-                    self.player.mediaStatusChanged.connect(self.on_media_ready)
+            try:
+                self.player.setSource(QUrl.fromLocalFile(self.current_video_path))
+            except Exception as e:
+                print(f"Error: {e}")
 
-                    self.timeline_slider.setRange(0, self.player.duration())
+            self.player.mediaStatusChanged.connect(self.on_media_ready)
 
-                    subtitle_path = os.path.splitext(node.path)[0] + ".srt"
-                    if os.path.isfile(subtitle_path):
-                        with open(subtitle_path, "r") as subtitle_file:
-                            subtitles = subtitle_file.read()
-                            self.subtitle_textedit.setPlainText(subtitles)
-                            self.parse_subtitles(subtitles)
-                            if not self.subtitle_connected:
-                                self.player.positionChanged.connect(self.display_subtitle)
-                                self.subtitle_connected = True
-                    else:
-                        self.subtitle_textedit.clear()
-                        self.subtitle_list = []
-                        if self.subtitle_connected:
-                            self.player.positionChanged.disconnect(self.display_subtitle)
-                            self.subtitle_connected = False
+            self.current_video_timer = 0
+            self.current_video_position = 0
+            self.current_video_played = False
 
-                self.update_video_info()
+            self.current_video_position = self.model.load_video_position(self.current_video_path)
+            self.current_video_played = self.model.load_video_played(self.current_video_path)
+            self.current_video_timer = self.model.load_video_timer(self.current_video_path)
+
+            subtitle_path = os.path.splitext(self.current_video_path)[0] + ".srt"
+            if os.path.isfile(subtitle_path):
+                with open(subtitle_path, "r") as subtitle_file:
+                    subtitles = subtitle_file.read()
+                    self.subtitle_textedit.setPlainText(subtitles)
+                    self.parse_subtitles(subtitles)
+
+                    if not self.subtitle_connected:
+                        self.player.positionChanged.connect(self.display_subtitle)
+                        self.subtitle_connected = True
+            else:
+                self.subtitle_textedit.clear()
+                self.subtitle_list = []
+
+                if self.subtitle_connected:
+                    self.player.positionChanged.disconnect(self.display_subtitle)
+                    self.subtitle_connected = False
+
+            self.update_video_info()
+
+        self.player.play()
 
     def on_media_ready(self, status):
         if status == QMediaPlayer.MediaStatus.LoadedMedia:
-            self.player.mediaStatusChanged.disconnect(self.on_media_ready)
+            try:
+                self.player.mediaStatusChanged.disconnect(self.on_media_ready)
+            except TypeError:
+                pass
 
             if self.current_video_position > 0:
-                self.player.setPosition(self.current_video_position)
+                QTimer.singleShot(100, lambda: self.player.setPosition(self.current_video_position))
 
             self.player.play()
 
@@ -613,40 +611,7 @@ class VideoPlayer(QMainWindow):
                 self.subtitle_textedit.clear()
 
 
-    def toggle_playback(self):
-        if self.player.playbackState() == QMediaPlayer.PlaybackState.PlayingState:
-            self.current_video_position = self.player.position()
-            self.model.save_video_info(self.current_video_path, self.current_video_position, self.current_video_played,
-                                       self.current_video_timer)
 
-            self.player.pause()
-            self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_play.png")))
-        else:
-            index = self.tree_view.currentIndex()
-            node = index.internalPointer()
-
-            if index.column() == 1:
-                first_column_index = index.sibling(index.row(), 0)
-                node = first_column_index.internalPointer()
-
-            if node.path == self.current_video_path or os.path.isdir(node.path):
-                self.player.setAudioOutput(self.audioOutput)
-                self.player.setPosition(self.current_video_position)
-                self.player.play()
-                self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_pause.png")))
-            else:
-                self.play_video(first_column_index if index.column() == 1 else index)
-                self.start_timer()
-                self.player.play()
-                self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_pause.png")))
-                self.settings.setValue("LastVideo", self.current_video_path)
-
-
-    def stop_video(self):
-        self.player.stop()
-        self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_play.png")))
-        self.stop_timer()
-        self.save_settings()
 
     def toggle_full_screen(self):
         self.is_pip_mode = False
@@ -681,30 +646,18 @@ class VideoPlayer(QMainWindow):
             self.show()
             self.is_pip_mode = False
 
-    def check_bookmark(self, position):
-        threshold = 5000
-
-        for bookmark in self.bookmark_list:
-            bookmark_position = bookmark[1]
-            if abs(bookmark_position - position) < threshold:
-                comment = bookmark[2]
-                self.current_bookmark_position = bookmark_position
-                self.show_bookmark_text(comment, bookmark_position)
-                break
 
     def update_duration(self):
         duration = self.player.duration()
         if duration > 0:
             self.timeline_slider.setRange(0, duration)
             self.load_bookmarks(self.current_video_path)
-        else:
-            print("Duration not valid")
+
 
     def update_position(self, position):
-        self.timeline_slider.setValue(position)
         self.current_video_position = position
+        self.timeline_slider.setValue(position)
 
-        self.check_bookmark(position)
 
     def set_position(self, position):
         self.player.setPosition(position)
@@ -720,9 +673,7 @@ class VideoPlayer(QMainWindow):
 
                 self.current_video_position = 0
                 self.current_video_played = True
-                self.model.save_video_info(self.current_video_path, self.current_video_position,
-                                           self.current_video_played, self.current_video_timer)
-
+                self.save_settings()
                 self.stop_video()
                 self.player.setPosition(0)
 
@@ -734,11 +685,7 @@ class VideoPlayer(QMainWindow):
         self.timer_running = 0
         self.timer_label.setStyleSheet("")
 
-    def save_last_file_played(self):
-        self.settings.setValue("LastVideo", self.current_video_path)
-
     def closeEvent(self, event):
-
         reply = QMessageBox.question(
             self, "Confirmation", "Are you sure you want to leave this session?",
             QMessageBox.StandardButton.Yes | QMessageBox.StandardButton.No, QMessageBox.StandardButton.No
@@ -747,51 +694,39 @@ class VideoPlayer(QMainWindow):
         if reply == QMessageBox.StandardButton.Yes:
 
             self.play_button.setIcon(QIcon(os.path.join(self.icon_path, "ico_play.png")))
-            self.model.save_video_info(self.current_video_path, self.current_video_position, self.current_video_played,
-                                       self.current_video_timer)
+            self.save_settings()
             self.player.stop()
 
             self.stop_timer()
             self.model.close_database()
-            self.save_settings()
 
             if hasattr(self, 'translation_thread'):
                 self.translation_thread.stop()
                 self.translation_thread.wait()
-            event.accept()
-
             event.accept()
             super().closeEvent(event)
 
         else:
             event.ignore()
 
-    def select_video_path(self):
-        folder_path = QFileDialog.getExistingDirectory(self, "Select Video Folder", self.folder_path)
-        if folder_path:
-            self.folder_path = folder_path
-            self.model = VideoTreeModel(folder_path, self.string_from_file, self.icon_path)
-            self.tree_view.setModel(self.model)
-            self.settings.setValue("VideoPath", self.folder_path)
-
-    def load_settings_in_ui(self):
-        subtitle_language = self.settings.value("SubtitleLanguage")
-        self.subtitle_language_combo.setCurrentText(subtitle_language)
-
     def save_settings(self):
         subtitle_language = self.subtitle_language_combo.currentText()
         self.settings.setValue("SubtitleLanguage", subtitle_language)
 
+        if self.player.position() != 0:
+            self.current_video_position = self.player.position()
+            self.model.save_video_info(self.current_video_path, self.current_video_position, self.current_video_played,
+                                       self.current_video_timer)
 
     def expand_all_nodes(self):
-        def expand_recursively(index):
-            if not index.isValid():
+        def expand_recursively(ind):
+            if not ind.isValid():
                 return
-            node = index.internalPointer()
+            node = ind.internalPointer()
             if node.is_folder:
-                self.tree_view.expand(index)
-                for i in range(self.model.rowCount(index)):
-                    child_index = self.model.index(i, 0, index)
+                self.tree_view.expand(ind)
+                for j in range(self.model.rowCount(ind)):
+                    child_index = self.model.index(j, 0, ind)
                     expand_recursively(child_index)
 
         root_index = QModelIndex()
